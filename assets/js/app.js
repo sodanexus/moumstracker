@@ -215,20 +215,6 @@ async function submitAuth() {
   }
 }
 
-let userMenuOpen = false;
-function toggleUserMenu() {
-  userMenuOpen = !userMenuOpen;
-  document.getElementById('userDropdown').classList.toggle('hidden', !userMenuOpen);
-  document.querySelector('#userMenu .user-btn')?.setAttribute('aria-expanded', String(userMenuOpen));
-}
-document.addEventListener('click', e => {
-  if (!document.getElementById('userMenu')?.contains(e.target)) {
-    userMenuOpen = false;
-    const dd = document.getElementById('userDropdown');
-    if (dd) dd.classList.add('hidden');
-    document.querySelector('#userMenu .user-btn')?.setAttribute('aria-expanded', 'false');
-  }
-});
 async function signOut() {
   try {
     const { error } = await sb.auth.signOut();
@@ -242,11 +228,8 @@ async function signOut() {
 function updateUserUI(user) {
   const email = user.email || '';
   const initials = email.slice(0,2).toUpperCase();
-  document.getElementById('userAvatar').textContent = initials;
   const name = email.split('@')[0];
   const displayName = name.charAt(0).toUpperCase() + name.slice(1);
-  document.getElementById('userDisplayName').textContent = displayName;
-  document.getElementById('userEmailDisplay').textContent = email;
   const mobileAvatar = document.getElementById('mobileUserAvatar');
   const mobileName = document.getElementById('mobileUserName');
   const mobileEmail = document.getElementById('mobileUserEmail');
@@ -255,22 +238,18 @@ function updateUserUI(user) {
   if (mobileEmail) mobileEmail.textContent = email;
 }
 
-// ─── MENU D'ACTIONS MOBILE ──────────────────────────────────────────────────
-const mobileActionsMedia = window.matchMedia('(max-width:768px)');
+// ─── MENU PRINCIPAL ─────────────────────────────────────────────────────────
 let mobileActionsPreviousInert = false;
 
 function openMobileActions() {
   const overlay = document.getElementById('mobileActionsModal');
   const app = document.getElementById('mainApp');
-  if (!overlay || !app || !mobileActionsMedia.matches || !currentUser ||
+  if (!overlay || !app || !currentUser ||
       app.classList.contains('hidden') || document.querySelector('.modal-overlay.open')) return;
   updateUserUI(currentUser);
-  userMenuOpen = false;
-  document.getElementById('userDropdown').classList.add('hidden');
-  document.querySelector('#userMenu .user-btn')?.setAttribute('aria-expanded', 'false');
   overlay.inert = false;
   document.getElementById('mobileActionsBtn').setAttribute('aria-expanded', 'true');
-  showDialog(overlay, '#mobileAddPositionBtn');
+  showDialog(overlay, '#mobileAddAccountBtn');
   _dialogReturnFocus = document.getElementById('mobileActionsBtn');
   mobileActionsPreviousInert = app.inert;
   app.inert = true;
@@ -294,13 +273,6 @@ function runMobileAction(action) {
   else if (action === 'signout') signOut();
 }
 
-mobileActionsMedia.addEventListener('change', event => {
-  if (!event.matches && document.getElementById('mobileActionsModal')?.classList.contains('open')) {
-    closeMobileActions();
-    document.getElementById('openAccountBtn')?.focus({ preventScroll: true });
-  }
-});
-
 function exportDataBackup() {
   const payload = {
     format: 'moumix-finance-backup',
@@ -322,9 +294,6 @@ function exportDataBackup() {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 0);
-  userMenuOpen = false;
-  document.getElementById('userDropdown').classList.add('hidden');
-  document.querySelector('#userMenu .user-btn')?.setAttribute('aria-expanded', 'false');
   showToast('✅ Sauvegarde JSON téléchargée', 'success');
 }
 
@@ -3067,6 +3036,8 @@ function simResetRates() {
     const input = document.getElementById('sim-category-rate-' + simDomKey(bucket.type));
     if (input) input.value = simAssumption(bucket.type).rate;
   });
+  const inflationInput = document.getElementById('sim-inflation');
+  if (inflationInput) inflationInput.value = '2';
   simUpdate();
 }
 
@@ -3224,8 +3195,10 @@ function simRenderBreakdown(result) {
 function simUpdate() {
   const monthlyInput = document.getElementById('sim-monthly');
   const yearsInput = document.getElementById('sim-years');
+  const inflationInput = document.getElementById('sim-inflation');
   const monthly = Math.max(0, Math.min(100000, Number.parseFloat(monthlyInput?.value) || 0));
   const years = Math.max(1, Math.min(60, Number.parseInt(yearsInput?.value, 10) || 1));
+  const inflation = Math.max(0, Math.min(20, Number.parseFloat(inflationInput?.value) || 0));
   syncTrajectoryYearButtons(years);
   const buckets = simGetPortfolioBuckets();
   const initial = simRenderPortfolioControls(buckets);
@@ -3252,6 +3225,13 @@ function simUpdate() {
   // Jauge composition (réaliste)
   const { final, totalInvested, totalInterest } = resReal;
   const totalMonthly = totalInvested - initial;
+  const realToday = final / Math.pow(1 + inflation / 100, years);
+  const realTodayEl = document.getElementById('sim-res-real-today');
+  if (realTodayEl) realTodayEl.textContent = `≈ ${simFmt(realToday)} en euros d’aujourd’hui`;
+  const formulaSummary = document.getElementById('sim-formula-summary');
+  if (formulaSummary) {
+    formulaSummary.textContent = `Scénario central : ${simFmt(initial)} déjà détenus + ${simFmt(totalMonthly)} de futurs versements + ${simSignedFmt(totalInterest)} de rendements estimés. Inflation retenue : ${inflation.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} % par an.`;
+  }
   const positiveInterest = Math.max(0, totalInterest);
   const compositionBase = initial + totalMonthly + positiveInterest;
   const pInit = compositionBase > 0 ? initial / compositionBase * 100 : 0;
@@ -3664,6 +3644,6 @@ window.App.authRecoveryVersion = '2026-08-28.1';
 for (const k of ['openMobileActions', 'closeMobileActions', 'runMobileAction']) {
   window.App[k] = window[k];
 }
-for (const k of ['addAccount', 'cancelAddPrel', 'cancelLivretEdit', 'closeEditPosition', 'closeGoalModal', 'closeModal', 'confirmAddPrel', 'confirmEditPosition', 'confirmEditPrel', 'confirmLivretSolde', 'confirmPosition', 'deleteAccount', 'deleteGoal', 'deletePosition', 'deletePrel', 'editGoal', 'editLivretSolde', 'editPrel', 'exportDataBackup', 'openAddGoal', 'openAddPrel', 'openEditPosition', 'openModal', 'refreshAllPrices', 'renderPrelevements', 'saveGoal', 'selectGoalEmoji', 'selectTickerByIndex', 'setAllocationMode', 'setChartPeriod', 'setPosSide', 'setTrajectoryYears', 'signOut', 'simNormalizeRate', 'simResetRates', 'simSetRate', 'sortPositions', 'switchPosTab', 'switchTab', 'toggleAll', 'toggleType', 'toggleUserMenu']) {
+for (const k of ['addAccount', 'cancelAddPrel', 'cancelLivretEdit', 'closeEditPosition', 'closeGoalModal', 'closeModal', 'confirmAddPrel', 'confirmEditPosition', 'confirmEditPrel', 'confirmLivretSolde', 'confirmPosition', 'deleteAccount', 'deleteGoal', 'deletePosition', 'deletePrel', 'editGoal', 'editLivretSolde', 'editPrel', 'exportDataBackup', 'openAddGoal', 'openAddPrel', 'openEditPosition', 'openModal', 'refreshAllPrices', 'renderPrelevements', 'saveGoal', 'selectGoalEmoji', 'selectTickerByIndex', 'setAllocationMode', 'setChartPeriod', 'setPosSide', 'setTrajectoryYears', 'signOut', 'simNormalizeRate', 'simResetRates', 'simSetRate', 'sortPositions', 'switchPosTab', 'switchTab', 'toggleAll', 'toggleType']) {
   if (typeof window[k] === 'function') window.App[k] = window[k];
 }
