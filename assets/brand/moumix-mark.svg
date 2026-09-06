@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Moumix</title>
+  <desc id="desc">Un M formé par deux poches imbriquées.</desc>
+  <rect width="64" height="64" rx="18" fill="#10191d"/>
+  <path d="M15 43V23.5c0-3.6 2.9-6.5 6.5-6.5h1.8L32 28.4 40.7 17h1.8c3.6 0 6.5 2.9 6.5 6.5V43"
+        fill="none" stroke="#e9fff8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M15 43h34" fill="none" stroke="#55e6b1" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="49" cy="17" r="4" fill="#65a8ff"/>
+</svg>
