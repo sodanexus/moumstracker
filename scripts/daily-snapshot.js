@@ -15,7 +15,8 @@ const YF_WORKER = 'https://yf-proxy.viqmusic-promo.workers.dev';
 const YF_BASE = 'https://query1.finance.yahoo.com';
 const FIXED_ACCOUNT_TYPES = new Set(['Livret', 'Immo', 'Autre']);
 const FETCH_TIMEOUT_MS = 8000;
-const FETCH_ATTEMPTS = 3;
+const FETCH_ATTEMPTS = 4;
+const QUOTE_CONCURRENCY = 3;
 
 function parisDateTime(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -55,43 +56,84 @@ const sb = createClient(SUPA_URL, SUPA_KEY, {
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+async function mapWithConcurrency(items, limit, mapper) {
+  const list = Array.from(items || []);
+  const results = new Array(list.length);
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < list.length) {
+      const index = cursor++;
+      results[index] = await mapper(list[index], index);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, list.length || 1)) }, worker));
+  return results;
+}
+
 async function fetchYahoo(path) {
   const target = YF_BASE + path;
+  const providers = [
+    `${YF_WORKER}?url=${encodeURIComponent(target)}`,
+    target
+  ];
   let lastError;
 
   for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt++) {
     try {
-      const response = await fetch(`${YF_WORKER}?url=${encodeURIComponent(target)}`, {
+      // Alterne le proxy Cloudflare et Yahoo en direct : GitHub Actions n'est
+      // pas soumis aux restrictions CORS d'un navigateur.
+      const providerUrl = providers[(attempt - 1) % providers.length];
+      const response = await fetch(providerUrl, {
+        headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
+      const body = await response.text();
+      try {
+        return JSON.parse(body);
+      } catch (_) {
+        const preview = body.replace(/\s+/g, ' ').slice(0, 80);
+        throw new Error(`réponse Yahoo non JSON${preview ? ` (${preview})` : ''}`);
+      }
     } catch (error) {
       lastError = error;
-      if (attempt < FETCH_ATTEMPTS) await wait(400 * attempt);
+      if (attempt < FETCH_ATTEMPTS) await wait(Math.min(5000, 700 * (2 ** (attempt - 1))));
     }
   }
 
   throw lastError || new Error('Yahoo Finance indisponible');
 }
 
+const rawQuoteCache = new Map();
 async function fetchQuote(symbol) {
-  const path = `/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-  const data = await fetchYahoo(path);
-  const result = data?.chart?.result?.[0];
-  const meta = result?.meta || {};
-  const closes = result?.indicators?.quote?.[0]?.close || [];
-  const fallbackClose = [...closes].reverse().find(value => Number.isFinite(value));
-  const price = Number(meta.regularMarketPrice ?? fallbackClose);
+  if (rawQuoteCache.has(symbol)) return rawQuoteCache.get(symbol);
+  const request = (async () => {
+    const path = `/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+    const data = await fetchYahoo(path);
+    const result = data?.chart?.result?.[0];
+    const meta = result?.meta || {};
+    const closes = result?.indicators?.quote?.[0]?.close || [];
+    const fallbackClose = [...closes].reverse().find(value => Number.isFinite(value));
+    const price = Number(meta.regularMarketPrice ?? fallbackClose);
 
-  if (!Number.isFinite(price) || price <= 0) {
-    throw new Error(`prix introuvable pour ${symbol}`);
-  }
-  if (!meta.currency) {
-    throw new Error(`devise introuvable pour ${symbol}`);
-  }
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new Error(`prix introuvable pour ${symbol}`);
+    }
+    if (!meta.currency) {
+      throw new Error(`devise introuvable pour ${symbol}`);
+    }
 
-  return { price, currency: meta.currency };
+    return { price, currency: meta.currency };
+  })();
+  rawQuoteCache.set(symbol, request);
+  try {
+    return await request;
+  } catch (error) {
+    rawQuoteCache.delete(symbol);
+    throw error;
+  }
 }
 
 const fxCache = new Map([['EUR', 1]]);
@@ -108,18 +150,29 @@ async function fxToEur(currency) {
   return quote.price;
 }
 
+const eurQuoteCache = new Map();
 async function quoteInEur(symbol) {
-  const quote = await fetchQuote(symbol);
-  const rawCurrency = String(quote.currency || 'EUR');
-  const isPence = rawCurrency === 'GBp' || rawCurrency.toUpperCase() === 'GBX';
-  const currency = isPence ? 'GBP' : rawCurrency.toUpperCase();
-  const rate = await fxToEur(currency);
-  const priceEur = quote.price * (isPence ? 0.01 : 1) * rate;
+  if (eurQuoteCache.has(symbol)) return eurQuoteCache.get(symbol);
+  const request = (async () => {
+    const quote = await fetchQuote(symbol);
+    const rawCurrency = String(quote.currency || 'EUR');
+    const isPence = rawCurrency === 'GBp' || rawCurrency.toUpperCase() === 'GBX';
+    const currency = isPence ? 'GBP' : rawCurrency.toUpperCase();
+    const rate = await fxToEur(currency);
+    const priceEur = quote.price * (isPence ? 0.01 : 1) * rate;
 
-  if (!Number.isFinite(priceEur) || priceEur <= 0) {
-    throw new Error(`conversion EUR impossible pour ${symbol}`);
+    if (!Number.isFinite(priceEur) || priceEur <= 0) {
+      throw new Error(`conversion EUR impossible pour ${symbol}`);
+    }
+    return { ...quote, priceEur };
+  })();
+  eurQuoteCache.set(symbol, request);
+  try {
+    return await request;
+  } catch (error) {
+    eurQuoteCache.delete(symbol);
+    throw error;
   }
-  return { ...quote, priceEur };
 }
 
 async function snapshotUser(userId) {
@@ -152,10 +205,12 @@ async function snapshotUser(userId) {
   const symbols = [...quantities.keys()];
   console.log(`  ${symbols.length} cotation(s) : ${symbols.join(', ') || 'aucune'}`);
 
-  // Si un seul cours ou taux échoue, Promise.all s'arrête avant l'upsert :
+  // Si un seul cours ou taux échoue, le calcul s'arrête avant l'upsert :
   // le dernier snapshot valide est donc conservé.
-  const quotes = new Map(await Promise.all(
-    symbols.map(async symbol => [symbol, await quoteInEur(symbol)])
+  const quotes = new Map(await mapWithConcurrency(
+    symbols,
+    QUOTE_CONCURRENCY,
+    async symbol => [symbol, await quoteInEur(symbol)]
   ));
 
   let marketTotal = 0;

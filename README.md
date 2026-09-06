@@ -90,7 +90,7 @@ Les snapshots quotidiens dessinent l’évolution du patrimoine dans le temps. L
 
 ## Version en cours
 
-**Édition personnelle — août 2026**
+**1.1.0 — septembre 2026**
 
 La version actuelle poursuit une même direction : rendre le suivi plus fiable sans alourdir l’interface.
 
@@ -101,13 +101,21 @@ La version actuelle poursuit une même direction : rendre le suivi plus fiable s
 - sauvegardes ciblées, contrôles d’erreur et restaurations compensatoires en cas d’échec ;
 - reprise automatique limitée lors d’un refus temporaire de jeton Supabase ;
 - snapshots calculés selon le fuseau `Europe/Paris`, avec conversion correcte des devises ;
-- manifest, icônes et service worker préparés pour l’installation en web app.
+- manifest, icônes et service worker préparés pour l’installation en web app ;
+- connexion privée limitée aux comptes déjà créés, sans formulaire d’inscription ;
+- cotations dédupliquées, mises en cache et limitées en parallèle ;
+- mise à jour de la PWA proposée avant l’activation d’une nouvelle version ;
+- structure HTML, CSS et JavaScript séparée sans modification du design.
 
 ## Architecture
 
 | Élément | Rôle |
 | --- | --- |
-| `index.html` | Interface complète et logique frontend en HTML, CSS et JavaScript vanilla |
+| `index.html` | Structure HTML de l’interface |
+| `assets/css/app.css` | Styles de l’application |
+| `assets/js/core.js` | Fonctions techniques pures et testables |
+| `assets/js/app.js` | Authentification, données et interface principale |
+| `assets/js/history-import.js` | Import de l’historique patrimonial |
 | Supabase | Authentification, PostgreSQL et règles RLS |
 | Yahoo Finance | Cours des actifs et indices |
 | Cloudflare Worker | Proxy CORS pour les requêtes Yahoo Finance |
@@ -115,15 +123,23 @@ La version actuelle poursuit une même direction : rendre le suivi plus fiable s
 | Service worker | Mise en cache du shell de l’application |
 | GitHub Pages | Hébergement statique possible |
 
-Le frontend tient volontairement dans un fichier principal afin de rester simple à déployer et à maintenir pour un usage personnel.
+Le frontend reste en JavaScript vanilla, sans compilation. Les fichiers sont séparés par responsabilité tout en pouvant être déposés directement sur GitHub Pages.
 
 ## Structure du projet
 
 ```text
 Moumix-Finance/
 ├── index.html
+├── version.json
 ├── manifest.json
 ├── sw.js
+├── assets/
+│   ├── css/
+│   │   └── app.css
+│   └── js/
+│       ├── core.js
+│       ├── app.js
+│       └── history-import.js
 ├── apple-touch-icon.png
 ├── icon-192.png
 ├── icon-512.png
@@ -131,9 +147,13 @@ Moumix-Finance/
 │   └── daily-snapshot.js
 ├── .github/workflows/
 │   └── daily-snapshot.yml
+├── tests/
+│   ├── core.test.cjs
+│   └── project.test.cjs
 ├── supabase_shema.sql
 ├── CHANGELOG_MODIFS.md
 ├── package.json
+├── package-lock.json
 └── robots.txt
 ```
 
@@ -153,7 +173,7 @@ Pour une base Moumix déjà utilisée, **ne rien exécuter** : la mise à jour d
 
 ### Configuration du frontend
 
-Dans `index.html`, renseigner l’URL et la clé publique `anon` du projet :
+Dans `assets/js/app.js`, renseigner l’URL et la clé publique `anon` du projet :
 
 ```js
 const SUPA_URL = 'https://VOTRE_PROJET.supabase.co';
@@ -177,6 +197,15 @@ Ajouter dans **Settings → Secrets and variables → Actions** :
 
 Le snapshot récupère les cours, convertit les devises en euros, vérifie que toutes les données nécessaires sont disponibles, puis effectue un upsert sur la date concernée. Il ne réécrit pas les anciens points d’historique.
 
+Les cotations communes aux deux utilisateurs sont réutilisées pendant une exécution. Trois requêtes maximum sont lancées simultanément et une réponse invalide ou une limitation temporaire est retentée avec un délai progressif. Le script alterne également le proxy Cloudflare et Yahoo en direct afin d'éviter qu'un seul intermédiaire bloque toute l'exécution. Si une donnée nécessaire manque encore, aucun snapshot partiel n’est enregistré.
+
+Le workflow vérifie également la syntaxe et les tests avant de lancer le snapshot :
+
+```bash
+npm run check
+npm test
+```
+
 ### Hébergement
 
 Déployer le dossier sur un hébergement statique HTTPS comme GitHub Pages, Netlify ou Cloudflare Pages.
@@ -185,7 +214,7 @@ Sur iPhone ou iPad : ouvrir le site dans Safari → **Partager** → **Sur l’�
 
 ## Données et confidentialité
 
-Moumix Finance est conçu pour un usage personnel. Les données sont séparées par utilisateur via Supabase Auth et les politiques RLS. L’application ne contient aucune clé de service côté frontend.
+Moumix Finance est conçu pour les deux comptes déjà autorisés. L’inscription publique est absente de l’interface et désactivée dans Supabase. Les données sont séparées par utilisateur via Supabase Auth et les politiques RLS. L’application ne contient aucune clé de service côté frontend.
 
 Les sauvegardes JSON permettent de conserver une copie locale de l’ensemble des comptes, positions, transactions, prélèvements, historique et objectifs.
 

@@ -1,6 +1,20 @@
-# Modifications — lot sécurisé
+# Moumix Finance 1.1.0 — mise à jour technique ciblée
 
 Cette mise à jour ne lance aucune migration et ne modifie pas les lignes Supabase existantes lors du déploiement.
+
+## Mise à jour de septembre 2026
+
+- Interface et navigation conservées à l’identique
+- Inscription retirée de l’écran de connexion et du JavaScript
+- CSS extrait dans `assets/css/app.css`
+- JavaScript séparé entre cœur technique, application et import d’historique
+- Dépendance Supabase figée et installation GitHub reproductible avec `package-lock.json`
+- Requêtes Yahoo mises en cache, dédupliquées, retentées et limitées en parallèle
+- Snapshot alternant le proxy Cloudflare et Yahoo en direct en cas d'indisponibilité
+- Conversion des cotations britanniques en pence corrigée dans l’application
+- Snapshots partageant les cotations communes aux deux utilisateurs
+- Activation des mises à jour PWA uniquement après validation de l’utilisateur
+- Vérification automatique de la syntaxe et tests avant le snapshot quotidien
 
 ## Données et fiabilité
 
