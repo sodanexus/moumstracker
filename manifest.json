@@ -1,11 +1,14 @@
 {
   "name": "Moumix Finance",
   "short_name": "Moumix",
+  "id": "./",
+  "description": "Tableau de bord privé pour suivre son patrimoine, ses comptes et ses projections.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0a0c0f",
-  "theme_color": "#0a0c0f",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "background_color": "#090c0f",
+  "theme_color": "#090c0f",
   "icons": [
     {
       "src": "icon-192.png",

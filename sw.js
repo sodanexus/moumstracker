@@ -1,8 +1,15 @@
-const CACHE_NAME = 'moumix-shell-v2';
+const APP_VERSION = '2.0.0';
+const CACHE_NAME = `moumix-shell-${APP_VERSION}`;
 const APP_SHELL = [
   './',
   './index.html',
+  './version.json',
   './manifest.json',
+  './assets/css/app.css',
+  './assets/css/v2.css',
+  './assets/js/core.js',
+  './assets/js/app.js',
+  './assets/js/v2.js',
   './apple-touch-icon.png',
   './icon-192.png',
   './icon-512.png'
@@ -12,7 +19,6 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
   );
 });
 
@@ -22,6 +28,10 @@ self.addEventListener('activate', event => {
       .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', event => {

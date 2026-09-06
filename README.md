@@ -42,17 +42,17 @@ Chaque donnée reste à sa place : les cours servent à suivre la valeur du port
 
 ## Les grands espaces
 
-### Vue d’ensemble
+### Synthèse
 
-Le point de départ de l’application : patrimoine total, capital investi, plus-values, allocation, évolution historique et répartition par compte.
+Le point de départ de l’application : patrimoine total, capital investi, plus-values, allocation, évolution historique, jalons et objectifs. Un état de fraîcheur indique clairement combien de cours sont disponibles et quand ils ont été actualisés.
 
-Les cours disponibles sont actualisés depuis Yahoo Finance. Lorsqu’un cours manque, la dernière valeur connue est conservée et l’interface l’indique au lieu de présenter une précision artificielle.
+Les repères de marché restent disponibles dans une section secondaire et ne sont chargés que lorsqu’elle est ouverte.
 
-### Comptes
+### Portefeuille
 
-Un espace pour organiser les différents supports et leurs positions : PEA, CTO, PEE, PER, assurance-vie, crypto, livret, immobilier ou autre.
+Un espace pour organiser les différents supports et leurs positions : PEA, CTO, PEE, PER, assurance-vie, crypto, livret, immobilier ou autre. Chaque compte se déplie pour afficher directement son contenu et ses actions.
 
-Chaque position peut afficher son ticker, sa quantité, son PRU, son cours actuel, sa valeur et sa performance. Les achats, ventes et modifications sont conservés dans un historique de transactions.
+Sur mobile, chaque position devient une fiche tactile lisible au lieu d’un tableau compressé. Les achats, ventes et modifications sont conservés dans l’historique des opérations.
 
 Les prélèvements récurrents peuvent également être regroupés par catégorie et suivis au mois ou à l’année.
 
@@ -63,9 +63,9 @@ Les projections partent directement du patrimoine renseigné dans Moumix Finance
 - un horizon de projection ;
 - des versements mensuels ;
 - des hypothèses de rendement par catégorie ;
-- trois scénarios — pessimiste, réaliste et optimiste.
+- trois scénarios — prudent, réaliste et favorable.
 
-Les hypothèses restent modifiables et la projection est explicitement présentée comme une simulation, jamais comme une prédiction ou un conseil financier.
+Les réglages restent propres à chaque utilisateur sur l’appareil utilisé. Les hypothèses sont présentées comme une simulation, jamais comme une prédiction ou un conseil financier.
 
 ### Historique et objectifs
 
@@ -90,24 +90,29 @@ Les snapshots quotidiens dessinent l’évolution du patrimoine dans le temps. L
 
 ## Version en cours
 
-**Édition personnelle — août 2026**
+**2.0.0 — septembre 2026**
 
-La version actuelle poursuit une même direction : rendre le suivi plus fiable sans alourdir l’interface.
+La V2 réorganise Moumix Finance autour d’une lecture plus rapide, d’actions plus explicites et d’une fondation technique plus facile à vérifier.
 
-- projections basées sur les comptes et positions réellement renseignés ;
-- menu mobile regroupant les actions et les informations du compte ;
-- navigation mobile fixe et zones sûres iOS mieux gérées ;
-- actualisation des cours plus résistante aux positions supprimées ou modifiées pendant le chargement ;
-- sauvegardes ciblées, contrôles d’erreur et restaurations compensatoires en cas d’échec ;
-- reprise automatique limitée lors d’un refus temporaire de jeton Supabase ;
-- snapshots calculés selon le fuseau `Europe/Paris`, avec conversion correcte des devises ;
-- manifest, icônes et service worker préparés pour l’installation en web app.
+- navigation **Synthèse · Portefeuille · Projections · •••** ;
+- page de connexion privée, sans inscription publique ;
+- comptes dépliables et fiches de positions réellement adaptées au mobile ;
+- état visible de la fraîcheur des cotations ;
+- chargement limité, dédupliqué et mis en cache pour Yahoo Finance ;
+- reprise automatique prolongée lors d’un refus JWT temporaire ;
+- préférences de projection mémorisées séparément pour chaque utilisateur ;
+- calculs financiers isolés et couverts par des tests automatiques ;
+- mise à jour PWA proposée explicitement lorsqu’une nouvelle version est prête.
 
 ## Architecture
 
 | Élément | Rôle |
 | --- | --- |
-| `index.html` | Interface complète et logique frontend en HTML, CSS et JavaScript vanilla |
+| `index.html` | Structure sémantique des écrans et boîtes de dialogue |
+| `assets/css` | Styles historiques et couche de design V2 |
+| `assets/js/core.js` | Calculs purs, conversion des devises et limite de concurrence |
+| `assets/js/app.js` | Données, authentification et fonctionnalités historiques |
+| `assets/js/v2.js` | Composants et comportements de l’interface V2 |
 | Supabase | Authentification, PostgreSQL et règles RLS |
 | Yahoo Finance | Cours des actifs et indices |
 | Cloudflare Worker | Proxy CORS pour les requêtes Yahoo Finance |
@@ -115,25 +120,41 @@ La version actuelle poursuit une même direction : rendre le suivi plus fiable s
 | Service worker | Mise en cache du shell de l’application |
 | GitHub Pages | Hébergement statique possible |
 
-Le frontend tient volontairement dans un fichier principal afin de rester simple à déployer et à maintenir pour un usage personnel.
+Le frontend reste sans framework ni compilation : les fichiers peuvent être envoyés directement sur GitHub Pages, tout en séparant désormais la structure, les styles, les calculs et l’interface.
 
 ## Structure du projet
 
 ```text
 Moumix-Finance/
 ├── index.html
+├── version.json
 ├── manifest.json
 ├── sw.js
+├── assets/
+│   ├── css/
+│   │   ├── app.css
+│   │   └── v2.css
+│   └── js/
+│       ├── core.js
+│       ├── app.js
+│       └── v2.js
 ├── apple-touch-icon.png
 ├── icon-192.png
 ├── icon-512.png
 ├── scripts/
 │   └── daily-snapshot.js
+├── supabase/migrations/
+│   └── 20260906_atomic_trades.sql
+├── tests/
+│   ├── core.test.cjs
+│   └── project.test.cjs
 ├── .github/workflows/
 │   └── daily-snapshot.yml
+├── DEPLOIEMENT_V2.md
 ├── supabase_shema.sql
 ├── CHANGELOG_MODIFS.md
 ├── package.json
+├── package-lock.json
 └── robots.txt
 ```
 
@@ -149,11 +170,13 @@ Pour une nouvelle installation :
 4. vérifier l’authentification par email et mot de passe ;
 5. contrôler les politiques RLS des six tables.
 
-Pour une base Moumix déjà utilisée, **ne rien exécuter** : la mise à jour de l’application ne nécessite aucune migration et ne supprime ni ne réécrit les données existantes.
+Pour une base Moumix déjà utilisée, la V2 fonctionne immédiatement sans migration et ne supprime ni ne réécrit les données existantes.
+
+La migration facultative `supabase/migrations/20260906_atomic_trades.sql` rend ensuite chaque modification de position et sa transaction historique réellement atomiques. Elle ne supprime aucune table ni colonne. Tant qu’elle n’est pas installée, l’application conserve automatiquement le mécanisme de compensation de la version précédente.
 
 ### Configuration du frontend
 
-Dans `index.html`, renseigner l’URL et la clé publique `anon` du projet :
+Dans `assets/js/app.js`, renseigner l’URL et la clé publique `anon` du projet :
 
 ```js
 const SUPA_URL = 'https://VOTRE_PROJET.supabase.co';
@@ -177,6 +200,17 @@ Ajouter dans **Settings → Secrets and variables → Actions** :
 
 Le snapshot récupère les cours, convertit les devises en euros, vérifie que toutes les données nécessaires sont disponibles, puis effectue un upsert sur la date concernée. Il ne réécrit pas les anciens points d’historique.
 
+Les cotations communes aux utilisateurs sont réutilisées pendant une exécution et trois requêtes maximum sont lancées simultanément. Une réponse invalide ou une limitation Yahoo est retentée avec un délai progressif ; aucun total partiel n’est enregistré.
+
+### Vérifications automatiques
+
+Avant le snapshot, GitHub Actions contrôle la syntaxe des scripts et lance les tests :
+
+```bash
+npm run check
+npm test
+```
+
 ### Hébergement
 
 Déployer le dossier sur un hébergement statique HTTPS comme GitHub Pages, Netlify ou Cloudflare Pages.
@@ -185,7 +219,7 @@ Sur iPhone ou iPad : ouvrir le site dans Safari → **Partager** → **Sur l’�
 
 ## Données et confidentialité
 
-Moumix Finance est conçu pour un usage personnel. Les données sont séparées par utilisateur via Supabase Auth et les politiques RLS. L’application ne contient aucune clé de service côté frontend.
+Moumix Finance est conçu pour deux utilisateurs autorisés. L’inscription publique est absente de l’interface et désactivée dans Supabase. Les deux comptes existants restent séparés par Supabase Auth et les politiques RLS. L’application ne contient aucune clé de service côté frontend.
 
 Les sauvegardes JSON permettent de conserver une copie locale de l’ensemble des comptes, positions, transactions, prélèvements, historique et objectifs.
 
