@@ -2,7 +2,7 @@
 
 <img src="./assets/brand/moumix-mark.svg" width="88" height="88" alt="Logo Moumix">
 
-# Moumix
+# Moumix Finance
 ### Le patrimoine, au même endroit
 
 <p><em>Comprendre ce que j’ai. Voir où il se trouve. Suivre le chemin parcouru.</em></p>
