@@ -198,7 +198,7 @@ textarea:focus-visible,.del-btn:focus-visible,.mobile-actions-toggle:focus-visib
 .save-toast.success{background:rgba(0,229,160,.97);color:#000}
 .save-toast.error{background:rgba(255,68,102,.97);color:#fff}
 
-/* Actions regroupées sur mobile ; la barre ordinateur reste inchangée. */
+/* Base du menu d’actions ; v2.css adapte sa présentation au format d’écran. */
 .mobile-actions-toggle,.mobile-actions-overlay{display:none}
 .empty-action{border:0;background:none;color:var(--accent);font:inherit;cursor:pointer;padding:8px 4px;min-height:44px}
 .empty-action:hover{text-decoration:underline}
