@@ -72,7 +72,7 @@ let _eurUsdInterval = null;
 let _priceRefreshInterval = null;
 let _lastRenderedTotal = null;
 let _totalAnimationToken = 0;
-const ALLOC_COLORS = ['#00e5a0','#0070f3','#ffb400','#ff4466','#c27aff','#00cfff','#ff9a3c'];
+const ALLOC_COLORS = ['#55e6b1','#65a8ff','#f1c56b','#ff7189','#b79aff','#63d6ed','#ff9a6b'];
 
 // ─── ONGLETS ─────────────────────────────────────────────────────────────────
 const TAB_ORDER = ['overview', 'details', 'simulator'];
@@ -116,13 +116,7 @@ function switchTab(name, btn) {
     if (name === 'simulator') {
       renderGoals();
       requestAnimationFrame(() => {
-        window.MoumixPrivatePlan?.render();
         simUpdate();
-        // Sur mobile, forcer le mode tableau
-        if (window.innerWidth <= 768) {
-          const btnTable = document.getElementById('simViewTable');
-          if (btnTable) simSetView('table', btnTable);
-        }
       });
     }
   }, current ? TIMING_TAB_TRANSITION : 0);
@@ -134,11 +128,6 @@ const TIMING_TOAST_SUCCESS   = 2500; // durée toast succès
 const TIMING_TOAST_ERROR     = 4000; // durée toast erreur
 const TIMING_TOAST_FADE      = 300;  // durée fade-out toast
 const TIMING_BANNER_AUTO     = 8000; // durée affichage banner erreur
-const TIMING_DOG_BUBBLE      = 6000; // durée bulle du chien
-const TIMING_DOG_WAF         = 1800; // durée bulle "waf"
-const TIMING_DOG_WAF_FADE    = 300;  // durée fade-out waf
-const TIMING_DOG_SHOW        = 400;  // délai apparition chien au login
-const TIMING_INDEX_UPDATE    = 400;  // durée animation index pill
 const TIMING_RESIZE_DEBOUNCE = 80;   // debounce resize
 const TIMING_SIM_DEBOUNCE    = 80;   // debounce simulateur
 const TIMING_TICKER_SEARCH   = 300;  // debounce recherche ticker
@@ -322,8 +311,7 @@ function exportDataBackup() {
     prelevements,
     transactions,
     patrimoineHistory,
-    goals,
-    privateProjectionPlan: window.MoumixPrivatePlan?.getExportData() || null
+    goals
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1480,7 +1468,7 @@ function renderPositions() {
     const pnl = p.price > 0 ? (p.current-p.price)*p.qty : null;
     const pct = p.price > 0 ? ((p.current-p.price)/p.price)*100 : null;
     const color = pnl === null ? 'var(--muted)' : pnl>=0?'var(--gain)':'var(--loss)';
-    const sparkColor = pnl === null ? 'var(--muted)' : pnl>=0?'#00e5a0':'#ff4466';
+    const sparkColor = pnl === null ? 'var(--muted)' : pnl>=0?'#55e6b1':'#ff7189';
     const hist=positionHistory[p.id]||[];
     const type=getAccountType(p.accountId);
     const pnlDisplay = pnl === null
@@ -1555,179 +1543,204 @@ function timeAgo(ts) {
   return `il y a ${Math.floor(diff/86400000)}j`;
 }
 
+const ALLOCATION_COLORS = Object.freeze({
+  PEA: '#55e6b1',
+  CTO: '#65a8ff',
+  PEE: '#7bd8c8',
+  PER: '#8db7ff',
+  AV: '#f1c56b',
+  Crypto: '#ff8b7f',
+  Livret: '#63d6ed',
+  Immo: '#b79aff',
+  Autre: '#91a2a9',
+});
+let allocationMode = 'type';
+
+function accountValue(account) {
+  if (!account) return 0;
+  if (FIXED_ACCOUNT_TYPES.has(account.type)) return Math.max(0, Number(account.solde) || 0);
+  return positions
+    .filter(position => position.accountId === account.id)
+    .reduce((sum, position) => sum + (Number(position.current) || 0) * (Number(position.qty) || 0), 0);
+}
+
+function accountPerformance(account) {
+  const accountPositions = positions.filter(position => position.accountId === account.id && Number(position.price) > 0);
+  const invested = accountPositions.reduce((sum, position) => sum + Number(position.price) * Number(position.qty), 0);
+  const value = accountPositions.reduce((sum, position) => sum + Number(position.current) * Number(position.qty), 0);
+  return invested > 0 ? { value: value - invested, pct: (value - invested) / invested * 100 } : null;
+}
+
+function allocationColor(type, index) {
+  return ALLOCATION_COLORS[type] || ALLOC_COLORS[index % ALLOC_COLORS.length];
+}
+
+window.setAllocationMode = function setAllocationMode(mode, button) {
+  if (!['type', 'account', 'asset'].includes(mode)) return;
+  allocationMode = mode;
+  document.querySelectorAll('.allocation-mode-btn').forEach(item => {
+    const active = item === button;
+    item.classList.toggle('active', active);
+    item.setAttribute('aria-pressed', String(active));
+  });
+  renderAllocation();
+};
+
 function renderAllocation() {
-  const el=document.getElementById('allocContent');
-  const activeAccounts = accounts.filter(a => isTypeActive(a.type));
-  const activeAccountIds = new Set(activeAccounts.map(a => a.id));
-  const activePositions = positions.filter(p => activeAccountIds.has(p.accountId));
-  if (activePositions.length===0 && activeAccounts.filter(a=>FIXED_ACCOUNT_TYPES.has(a.type)).every(a=>!a.solde)) {
-    el.innerHTML=`<div class="empty-state">${accounts.length ? 'Aucune valeur dans les filtres actifs' : 'Ajoutez des positions'}</div>`; return;
+  const element = document.getElementById('allocContent');
+  if (!element) return;
+
+  const activeAccounts = accounts.filter(account => isTypeActive(account.type));
+  const activeIds = new Set(activeAccounts.map(account => account.id));
+  const activePositions = positions.filter(position => activeIds.has(position.accountId));
+  const groups = new Map();
+
+  const add = (key, label, detail, value, type) => {
+    const amount = Number(value) || 0;
+    const current = groups.get(key) || { key, label, detail, value: 0, type };
+    current.value += amount;
+    groups.set(key, current);
+  };
+
+  if (allocationMode === 'type') {
+    activeAccounts.forEach(account => add(
+      account.type,
+      simTypeLabel(account.type),
+      '',
+      FIXED_ACCOUNT_TYPES.has(account.type) ? account.solde : 0,
+      account.type
+    ));
+    activePositions.forEach(position => {
+      const account = accounts.find(item => item.id === position.accountId);
+      add(account?.type || 'Autre', simTypeLabel(account?.type || 'Autre'), '', position.current * position.qty, account?.type || 'Autre');
+    });
+    groups.forEach(group => {
+      const count = activeAccounts.filter(account => account.type === group.type).length;
+      group.detail = count + ' ' + (count > 1 ? 'comptes' : 'compte');
+    });
+  } else if (allocationMode === 'account') {
+    activeAccounts.forEach(account => add(
+      account.id,
+      account.name,
+      simTypeLabel(account.type),
+      accountValue(account),
+      account.type
+    ));
+  } else {
+    activePositions.forEach(position => add(
+      position.symbol,
+      position.symbol,
+      position.name || getAccountName(position.accountId),
+      position.current * position.qty,
+      getAccountType(position.accountId) || 'Autre'
+    ));
+    activeAccounts
+      .filter(account => FIXED_ACCOUNT_TYPES.has(account.type) && Number(account.solde) > 0)
+      .forEach(account => add(account.id, account.name, simTypeLabel(account.type), account.solde, account.type));
   }
-  const fixedTotalAlloc=activeAccounts.filter(a=>FIXED_ACCOUNT_TYPES.has(a.type)).reduce((s,a)=>s+(a.solde||0),0);
-  const total=activePositions.reduce((s,p)=>s+p.current*p.qty,0)+fixedTotalAlloc;
-  if (total <= 0) { el.innerHTML='<div class="empty-state">Aucune valeur calculable</div>'; return; }
 
-  // Grouper les positions par symbole
-  const map={};
-  activePositions.forEach(p=>{
-    if(!map[p.symbol]) map[p.symbol]={val:0, name:p.name, accountTypes: new Set()};
-    map[p.symbol].val += p.current*p.qty;
-    const accType = getAccountType(p.accountId);
-    if (accType) map[p.symbol].accountTypes.add(accType);
+  let sorted = [...groups.values()].filter(group => group.value > 0.005).sort((a, b) => b.value - a.value);
+  if (!sorted.length) {
+    element.innerHTML = `<div class="empty-state">${accounts.length ? 'Aucune valeur dans les filtres actifs' : 'Ajoutez un compte pour commencer'}</div>`;
+    return;
+  }
+
+  if (sorted.length > 6) {
+    const visible = sorted.slice(0, 5);
+    const rest = sorted.slice(5);
+    visible.push({
+      key: 'others',
+      label: 'Autres',
+      detail: rest.length + ' éléments',
+      value: rest.reduce((sum, item) => sum + item.value, 0),
+      type: 'Autre',
+    });
+    sorted = visible;
+  }
+
+  const total = sorted.reduce((sum, group) => sum + group.value, 0);
+  let cursor = 0;
+  const slices = sorted.map((group, index) => {
+    const pct = total > 0 ? group.value / total * 100 : 0;
+    const start = cursor;
+    cursor += pct;
+    return { ...group, pct, color: allocationColor(group.type, index), start, end: cursor };
   });
-  activeAccounts.filter(a=>(FIXED_ACCOUNT_TYPES.has(a.type)) && a.solde>0).forEach(a=>{
-    const key=a.type+':'+a.id;
-    map[key]={val:a.solde, name:a.name, accountTypes: new Set([a.type])};
-  });
-  const sorted=Object.entries(map).sort((a,b)=>b[1].val-a[1].val);
+  const gradient = slices.map(slice => `${slice.color} ${slice.start.toFixed(2)}% ${slice.end.toFixed(2)}%`).join(', ');
+  const rows = slices.map(slice => `
+    <div class="allocation-row">
+      <span class="allocation-dot" style="background:${slice.color}"></span>
+      <div class="allocation-copy">
+        <div class="allocation-name">${_esc(slice.label)}</div>
+        <div class="allocation-detail">${_esc(slice.detail || '')}</div>
+      </div>
+      <div class="allocation-numbers">
+        <div class="allocation-amount">${fmtEur(slice.value)}</div>
+        <div class="allocation-pct">${fmt(slice.pct, 1)} %</div>
+      </div>
+    </div>`).join('');
 
-  // Assign colors
-  const coloredSlices = sorted.map(([sym,d],i) => ({
-    sym, d,
-    pct: d.val/total,
-    color: ALLOC_COLORS[i%ALLOC_COLORS.length]
-  }));
-
-  // ── Liste items ──
-  const listItems=coloredSlices.slice(0,10).map(s=>{
-    const isLivret=s.sym.includes(':');
-    const label=isLivret?s.d.name:s.sym;
-    const sub=isLivret?'':(s.d.name||'');
-    const typeTags=[...s.d.accountTypes].map(t=>`<span class="tag ${tagClass(t)}" style="font-size:0.52rem;padding:1px 4px">${t}</span>`).join('');
-    const pctVal=(s.pct*100).toFixed(1);
-    return `<div style="margin-bottom:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px">
-        <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1">
-          <div style="width:10px;height:10px;border-radius:3px;background:${s.color};flex-shrink:0"></div>
-          <div style="min-width:0">
-            <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-              <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:0.8rem;white-space:nowrap">${label}</span>
-              ${typeTags}
-            </div>
-            ${sub?`<div style="font-size:0.6rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${sub}</div>`:''}
-          </div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-family:'DM Mono',monospace;font-size:0.75rem">${fmtEur(s.d.val)}</div>
-          <div style="font-size:0.62rem;color:var(--muted)">${pctVal}%</div>
+  element.innerHTML = `
+    <div class="allocation-layout">
+      <div class="allocation-donut" style="background:conic-gradient(${gradient})" role="img" aria-label="Répartition du patrimoine">
+        <div class="allocation-donut-center">
+          <div class="allocation-donut-label">Total affiché</div>
+          <div class="allocation-donut-value">${_fmtEur0.format(total)}</div>
         </div>
       </div>
-      <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${pctVal}%;background:${s.color};border-radius:3px;transition:width 0.6s ease;opacity:0.85"></div>
-      </div>
+      <div class="allocation-list">${rows}</div>
     </div>`;
-  }).join('');
-
-  el.innerHTML=`
-    <div style="padding-top:4px">${listItems}</div>`;
 }
 
 function renderByAccount() {
-  const el = document.getElementById('byAccountContent');
-  const badgeEl = document.getElementById('milestoneBadge');
-  if (!el) return;
+  const element = document.getElementById('byAccountContent');
+  const badge = document.getElementById('accountCountBadge');
+  if (!element) return;
 
-  const MILESTONES = [25000, 50000, 75000, 100000, 150000, 200000, 300000, 500000, 750000, 1000000];
+  const activeAccounts = accounts
+    .filter(account => isTypeActive(account.type))
+    .map(account => ({ account, value: accountValue(account), performance: accountPerformance(account) }))
+    .sort((a, b) => b.value - a.value);
+  const total = activeAccounts.reduce((sum, item) => sum + item.value, 0);
 
-  function getMilestoneLabel(v) {
-    if (v >= 1000000) return '1 M €';
-    if (v >= 1000) return (v / 1000) + ' k €';
-    return v + ' €';
+  if (badge) badge.textContent = activeAccounts.length + ' ' + (activeAccounts.length > 1 ? 'comptes' : 'compte');
+  if (!activeAccounts.length) {
+    element.innerHTML = '<div class="empty-state">Aucun compte dans les filtres actifs</div>';
+    return;
   }
 
-  function getMilestoneReachedDate(threshold) {
-    const sorted = [...patrimoineHistory].sort((a, b) => a.date < b.date ? -1 : 1);
-    const hit = sorted.find(h => parseFloat(h.value) >= threshold);
-    return hit ? hit.date : null;
-  }
+  const rows = activeAccounts.slice(0, 5).map((item, index) => {
+    const account = item.account;
+    const typeColor = allocationColor(account.type, index);
+    const positionCount = positions.filter(position => position.accountId === account.id).length;
+    const meta = FIXED_ACCOUNT_TYPES.has(account.type)
+      ? simTypeLabel(account.type)
+      : `${simTypeLabel(account.type)} · ${positionCount} ${positionCount > 1 ? 'positions' : 'position'}`;
+    const perf = item.performance;
+    const perfLabel = perf
+      ? ` · <span class="${perf.value >= 0 ? 'gain-col' : 'loss-col'}">${perf.value >= 0 ? '+' : ''}${fmt(perf.pct, 1)} %</span>`
+      : '';
+    return `
+      <div class="pocket-row">
+        <div class="pocket-icon" style="background:${typeColor}18;color:${typeColor}">${_esc((account.type || 'A').slice(0, 2).toUpperCase())}</div>
+        <div class="pocket-copy">
+          <div class="pocket-name">${_esc(account.name)}</div>
+          <div class="pocket-meta">${_esc(meta)}${perfLabel}</div>
+        </div>
+        <div class="pocket-value">
+          ${fmtEur(item.value)}
+          <div class="pocket-share">${total > 0 ? fmt(item.value / total * 100, 1) + ' %' : '—'}</div>
+        </div>
+      </div>`;
+  }).join('');
 
-  function formatMilestoneDate(dateStr) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
-  }
-
-  const fixedTotal = accounts.filter(a => FIXED_ACCOUNT_TYPES.has(a.type)).reduce((s, a) => s + (a.solde || 0), 0);
-  const current = positions.reduce((s, p) => s + p.current * p.qty, 0) + fixedTotal;
-
-  // Un jalon est "atteint" si la valeur actuelle OU l'historique passé le dépasse
-  // → évite qu'une baisse temporaire "décoite" un jalon acquis
-  const maxEverReached = Math.max(
-    current,
-    ...patrimoineHistory.map(h => parseFloat(h.value) || 0)
-  );
-  const doneList = MILESTONES.filter(m => maxEverReached >= m);
-  const nextIdx  = MILESTONES.findIndex(m => current < m);
-  const next     = nextIdx >= 0 ? MILESTONES[nextIdx] : null;
-
-  if (badgeEl) badgeEl.textContent = doneList.length + ' / ' + MILESTONES.length;
-
-  let html = '';
-
-  if (next) {
-    const prev      = nextIdx > 0 ? MILESTONES[nextIdx - 1] : 0;
-    const pct       = Math.min(((current - prev) / (next - prev)) * 100, 100);
-    const remaining = next - current;
-    html += `<div style="background:var(--surface2);border-radius:10px;padding:12px 14px;margin-bottom:14px">
-      <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:4px">Prochain jalon</div>
-      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:1.25rem;margin-bottom:2px">${getMilestoneLabel(next)}</div>
-      <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin:8px 0 5px">
-        <div style="height:100%;width:${pct.toFixed(1)}%;background:var(--accent);border-radius:3px;transition:width 0.8s cubic-bezier(0.4,0,0.2,1)"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:0.65rem;font-family:'DM Mono',monospace;color:var(--muted)">
-        <span>${fmtEur(current)}</span>
-        <span>${pct.toFixed(0)}% · encore ${fmtEur(remaining)}</span>
-        <span>${getMilestoneLabel(next)}</span>
-      </div>
+  const remaining = activeAccounts.length - 5;
+  element.innerHTML = `
+    <div class="pockets-list">${rows}</div>
+    <div style="display:flex;align-items:center;justify-content:${remaining > 0 ? 'space-between' : 'flex-end'};gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      ${remaining > 0 ? `<span style="color:var(--muted);font-size:.68rem">+${remaining} autre${remaining > 1 ? 's' : ''}</span>` : ''}
+      <button type="button" class="card-link" onclick="switchTab('details',document.getElementById('nav-details'))">Ouvrir le portefeuille →</button>
     </div>`;
-  } else {
-    html += `<div style="background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;text-align:center">
-      <div style="font-size:1.4rem;margin-bottom:4px">🏆</div>
-      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:1rem;color:var(--accent)">1 M € atteint !</div>
-    </div>`;
-  }
-
-  const doneToShow = doneList.slice(-3);
-  const futureList = MILESTONES.filter(m => current < m);
-  const toShow     = [...doneToShow, ...futureList];
-
-  if (doneList.length > 3) {
-    html += `<div style="font-size:0.62rem;color:var(--muted);margin-bottom:8px;padding-left:26px">…et ${doneList.length - 3} jalon${doneList.length - 3 > 1 ? 's' : ''} précédent${doneList.length - 3 > 1 ? 's' : ''} atteint${doneList.length - 3 > 1 ? 's' : ''}</div>`;
-  }
-
-  html += '<div style="display:flex;flex-direction:column;gap:6px">';
-  toShow.forEach(m => {
-    const isDone    = maxEverReached >= m;
-    const isNext    = m === next;
-    const everDone  = isDone && current < m; // atteint dans le passé mais pas aujourd'hui
-    const dateLabel = isDone ? formatMilestoneDate(getMilestoneReachedDate(m)) : '';
-    const dateDisplay = everDone
-      ? `<span style="font-size:0.65rem;font-family:'DM Mono',monospace;color:#ffb400" title="Patrimoine actuel en dessous">atteint ↓</span>`
-      : `<span style="font-size:0.65rem;font-family:'DM Mono',monospace;color:${isNext ? 'var(--accent2)' : 'var(--muted)'}">${isNext ? 'en cours' : dateLabel}</span>`;
-    let iconHtml, labelStyle;
-    if (isDone && !everDone) {
-      // Atteint et toujours au-dessus
-      iconHtml   = `<div style="width:18px;height:18px;border-radius:50%;background:rgba(0,229,160,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:var(--accent)">✓</div>`;
-      labelStyle = 'text-decoration:line-through;color:var(--muted)';
-    } else if (everDone) {
-      // Atteint dans le passé mais en dessous actuellement
-      iconHtml   = `<div style="width:18px;height:18px;border-radius:50%;background:rgba(255,180,0,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#ffb400" title="Atteint mais patrimoine actuellement en dessous">↓</div>`;
-      labelStyle = 'color:#ffb400';
-    } else if (isNext) {
-      iconHtml   = `<div style="width:18px;height:18px;border-radius:50%;background:rgba(0,112,243,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:var(--accent2)">→</div>`;
-      labelStyle = 'font-weight:700;color:var(--text)';
-    } else {
-      iconHtml   = `<div style="width:18px;height:18px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:var(--muted)">○</div>`;
-      labelStyle = 'color:var(--muted)';
-    }
-    html += `<div style="display:flex;align-items:center;gap:8px">
-      ${iconHtml}
-      <span style="font-size:0.78rem;flex:1;${labelStyle}">${getMilestoneLabel(m)}</span>
-      ${dateDisplay}
-    </div>`;
-  });
-  html += '</div>';
-  el.innerHTML = html;
 }
 function renderSummary() {
   const activeAccounts = accounts.filter(a => isTypeActive(a.type));
@@ -1771,7 +1784,7 @@ function renderSummary() {
   }
   // Capital investi
   const ciEl = document.getElementById('capitalInvested');
-  if (ciEl) { ciEl.textContent = cost > 0 ? fmtEur(cost) : '—'; ciEl.className = 'stat-val'; }
+  if (ciEl) { ciEl.textContent = cost > 0 ? fmtEur(cost) : '—'; ciEl.className = 'wealth-metric-value'; }
 
   const tp=document.getElementById('totalPnl');
   const newPnlText = cost > 0 ? ((totalPnl>=0?'+':'')+fmtEur(totalPnl)+' ('+(totalPnl>=0?'+':'')+fmt(totalPnlPct)+'%)') : '—';
@@ -1780,14 +1793,14 @@ function renderSummary() {
     tp.style.animation = 'countUp 0.4s ease both';
   }
   tp.textContent = newPnlText;
-  tp.className='stat-val '+(totalPnl>=0?'gain-col':'loss-col');
+  tp.className='wealth-metric-value '+(totalPnl>=0?'gain-col':'loss-col');
 
   // Dernière mise à jour des prix
   const luEl = document.getElementById('lastUpdateStat');
   if (luEl) {
     const lastTs = positions.reduce((m, p) => Math.max(m, p.lastUpdated || 0), 0);
     luEl.textContent = lastTs > 0 ? timeAgo(lastTs) : '—';
-    luEl.className = 'stat-val';
+    luEl.className = 'wealth-update-time';
     luEl.style.color = 'var(--muted)';
   }
   updateBrowserTitle();
@@ -1801,30 +1814,14 @@ function renderAll() {
   renderAccounts(); renderPositions(); renderAllocation(); renderByAccount();
   renderSummary(); renderFilterToggles(); renderChart();
   refreshProjectionIfActive();
-  window.MoumixPrivatePlan?.refreshFromPortfolio();
 }
 
 // ─── TITRE NAVIGATEUR ────────────────────────────────────────────────────────
 function updateBrowserTitle() {
   const totalEl = document.getElementById('totalValue');
-  if (!totalEl || totalEl.textContent === '—') {
-    document.title = 'Moumix Finance';
-    return;
-  }
-  // Plus-value totale (PRU connu uniquement)
-  const posWithPRU = positions.filter(p => p.price > 0);
-  const cost = posWithPRU.reduce((s,p) => s + p.price * p.qty, 0);
-  const value = posWithPRU.reduce((s,p) => s + p.current * p.qty, 0);
-  const pnl = value - cost;
-  const pnlPct = cost > 0 ? (pnl / cost * 100) : 0;
-  const sign = pnl >= 0 ? '+' : '';
-  const emoji = pnl >= 0 ? '📈' : '📉';
-  const pnlStr = sign + (Math.abs(pnl) >= 1000
-    ? (pnl/1000).toFixed(1) + 'k'
-    : Math.round(pnl) + '') + '€';
-  document.title = cost > 0
-    ? `${emoji} ${sign}${pnlPct.toFixed(2)}% (${pnlStr}) — Moumix Finance`
-    : 'Moumix Finance';
+  document.title = totalEl && totalEl.textContent !== '—'
+    ? totalEl.textContent + ' · Moumix'
+    : 'Moumix — Patrimoine';
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
@@ -2125,7 +2122,7 @@ function renderPeriodVariation() {
   labelEl.textContent = 'Variation globale · ' + (periodLabels[currentChartPeriod] || currentChartPeriod);
 
   const filtered = filterChartData([...patrimoineHistory].sort((a,b) => a.date < b.date ? -1 : 1), currentChartPeriod);
-  if (filtered.length < 2) { valEl.textContent = '—'; valEl.className = 'stat-val'; return; }
+  if (filtered.length < 2) { valEl.textContent = '—'; valEl.className = 'wealth-metric-value'; return; }
 
   const first = parseFloat(filtered[0].value) || 0;
   const last = parseFloat(filtered[filtered.length - 1].value) || 0;
@@ -2133,7 +2130,7 @@ function renderPeriodVariation() {
   const deltaPct = first > 0 ? (delta / first * 100) : 0;
 
   valEl.textContent = (delta >= 0 ? '+' : '') + fmtEur(delta) + ' (' + (deltaPct >= 0 ? '+' : '') + fmt(deltaPct) + '%)';
-  valEl.className = 'stat-val ' + (delta >= 0 ? 'gain-col' : 'loss-col');
+  valEl.className = 'wealth-metric-value ' + (delta >= 0 ? 'gain-col' : 'loss-col');
 }
 
 function filterChartData(data, period) {
@@ -2246,7 +2243,7 @@ function renderChart() {
   const yScale = (v) => pad.top + iH - ((v - minV) / range) * iH;
 
   const isGain = data[data.length-1].value >= data[0].value;
-  const lineColor = isGain ? '#00e5a0' : '#ff4466';
+  const lineColor = isGain ? '#55e6b1' : '#ff7189';
   const gradId = 'chartGrad_' + Date.now();
 
   // Build path: solid for real segments, dashed for interpolated
@@ -2355,7 +2352,7 @@ function renderChart() {
     document.getElementById('ttVal').textContent = fmtEur(pt.value) + (pt.estimated ? ' (estimé)' : '');
     const ttDelta = document.getElementById('ttDelta');
     ttDelta.textContent = (delta >= 0 ? '+' : '') + fmtEur(delta) + ' (' + (deltaPct >= 0 ? '+' : '') + fmt(deltaPct) + '%)';
-    ttDelta.style.color = delta >= 0 ? '#00e5a0' : '#ff4466';
+    ttDelta.style.color = delta >= 0 ? '#55e6b1' : '#ff7189';
     tt.style.opacity = '1';
     const ttX = Math.min(Math.max(x, 80), W - 80);
     tt.style.left = ttX + 'px';
@@ -2616,107 +2613,6 @@ document.addEventListener('visibilitychange', () => {
     }
   }
 });
-// ─── CHIEN MASCOTTE ───────────────────────────────────────────────────────────
-let dogBubbleTimer = null;
-let dogWafTimer = null;
-
-function showDog(user) {
-  const widget = document.getElementById('dogWidget');
-  const bubble = document.getElementById('dogBubble');
-  const svgWrap = document.getElementById('dogSvgWrap');
-
-  widget.classList.remove('hidden');
-  svgWrap.className = 'dog-svg-wrap'; // reset, bounce in
-
-  const name = (user.email || '').split('@')[0];
-  const displayName = name.charAt(0).toUpperCase() + name.slice(1);
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
-
-  // Messages contextuels selon la perf du portefeuille
-  const dayChange = positions.reduce((s, p) => s + (p.changePercent || 0) * p.current * p.qty / 100, 0);
-  const totalVal = positions.reduce((s, p) => s + p.current * p.qty, 0);
-  const dayPct = totalVal > 0 ? (dayChange / totalVal * 100) : null;
-
-  let contextMsg = '';
-  if (dayPct !== null && positions.length > 0) {
-    if (dayPct >= 2) contextMsg = `📈 Superbe journée ! +${dayPct.toFixed(2)}% aujourd'hui 🚀`;
-    else if (dayPct >= 0.5) contextMsg = `📈 Belle journée ! +${dayPct.toFixed(2)}% 🎉`;
-    else if (dayPct <= -2) contextMsg = `📉 Dure journée… ${dayPct.toFixed(2)}%. Hodl, ${displayName} ! 🐾`;
-    else if (dayPct < -0.5) contextMsg = `📉 Légère baisse (${dayPct.toFixed(2)}%). Ça va remonter ! 💪`;
-  }
-
-  const dogGreetings = contextMsg ? [
-    `<div class="dog-bubble-name">🐕 ${greeting}, <span>${displayName}</span> !</div><div class="dog-bubble-stat">${contextMsg}</div>`
-  ] : [
-    `<div class="dog-bubble-name">🐾 ${greeting}, <span>${displayName}</span> !</div><div class="dog-bubble-stat">Content de te voir ! Je veille sur tes finances 👀</div>`,
-    `<div class="dog-bubble-name">🌟 ${greeting} <span>${displayName}</span> !</div><div class="dog-bubble-stat">Prêt pour une belle journée d'investissement ?</div>`,
-    `<div class="dog-bubble-name">🐕 ${greeting}, <span>${displayName}</span> !</div><div class="dog-bubble-stat">Vos futurs projets vous remercient 🏡</div>`,
-    `<div class="dog-bubble-name">🎀 ${greeting} <span>${displayName}</span> ~</div><div class="dog-bubble-stat">Économiser c'est s'offrir demain 💛</div>`,
-  ];
-  const randomGreet = dogGreetings[Math.floor(Math.random() * dogGreetings.length)];
-  bubble.innerHTML = randomGreet;
-  bubble.classList.remove('hidden');
-  bubble.className = 'dog-welcome-bubble';
-
-  // Bulle disparaît après 6s
-  clearTimeout(dogBubbleTimer);
-  dogBubbleTimer = setTimeout(() => { // TIMING_DOG_BUBBLE
-    bubble.classList.add('hiding');
-    setTimeout(() => {
-      bubble.classList.add('hidden');
-      bubble.classList.remove('hiding');
-      svgWrap.className = 'dog-svg-wrap idle';
-    }, 300);
-  }, TIMING_DOG_BUBBLE);
-}
-
-const DOG_PHRASES = [
-  'Waf ! 🐾',
-  'On économise pour les vacances ? 🌴',
-  'Chaque centime compte ! 🐕',
-  'Vous êtes trop forts tous les deux 💕',
-  'Un petit sou de plus aujourd\'hui ~ 🌸',
-  'Je veille sur vos économies 🐾',
-  'Vos futurs projets vous remercient ! 🏡',
-  'L\'amour et les sous, ça fait deux 💛',
-  'Hé, cliquez pas trop fort sur moi 🥺',
-  'Je crois en vous ! 🌟',
-  'Économiser c\'est s\'offrir demain 🎀',
-  'Un bisou pour le courage 💋',
-];
-let lastDogPhrase = -1;
-
-function dogClick() {
-  const svgWrap = document.getElementById('dogSvgWrap');
-  const wafContainer = document.getElementById('wafBubble');
-
-  // Shake
-  svgWrap.classList.remove('shaking', 'idle');
-  void svgWrap.offsetWidth;
-  svgWrap.classList.add('shaking');
-
-  // Phrase aléatoire (pas deux fois la même d'affilée)
-  let idx;
-  do { idx = Math.floor(Math.random() * DOG_PHRASES.length); } while (idx === lastDogPhrase);
-  lastDogPhrase = idx;
-
-  if (dogWafTimer) clearTimeout(dogWafTimer);
-  // Créer la bulle waf dans le container
-  wafContainer.innerHTML = `<div class="waf-bubble">${DOG_PHRASES[idx]}</div>`;
-  dogWafTimer = setTimeout(() => {
-    const waf = wafContainer.querySelector('.waf-bubble');
-    if (waf) {
-      waf.classList.add('fade');
-      setTimeout(() => { wafContainer.innerHTML = ''; }, TIMING_DOG_WAF_FADE);
-    }
-  }, TIMING_DOG_WAF);
-
-  setTimeout(() => {
-    svgWrap.classList.remove('shaking');
-    svgWrap.classList.add('idle');
-  }, 500); // dog shake duration
-}
 
 
 // ─── RACCOURCIS CLAVIER ──────────────────────────────────────────────────────
@@ -2817,9 +2713,7 @@ function clearLoadedSession() {
   clearInterval(_priceRefreshInterval); _priceRefreshInterval = null;
   clearInterval(_eurUsdInterval); _eurUsdInterval = null;
   eurRates = {};
-  document.getElementById('dogWidget')?.classList.add('hidden');
   document.getElementById('mainApp').classList.add('hidden');
-  window.MoumixPrivatePlan?.reset();
 }
 
 function initApp(user) {
@@ -2880,15 +2774,11 @@ function initApp(user) {
       renderAll();
       renderPrelevements();
       renderGoals();
-      window.MoumixPrivatePlan?.load(currentUser).catch(error =>
-        console.warn('[Moumix] Plan patrimonial privé indisponible:', error?.message || error));
       fetchEurUsd();
       _eurUsdInterval = setInterval(() => { if (_appReadyTask === task) fetchEurUsd(); }, 5 * 60 * 1000);
-      setTimeout(() => { if (_appReadyTask === task) showDog(currentUser); }, TIMING_DOG_SHOW);
       if (positions.length > 0) {
         refreshAllPrices();
       }
-      loadNewsIndices();
       _priceRefreshInterval = setInterval(() => {
         if (_appReadyTask === task && positions.length > 0 && document.visibilityState === 'visible') refreshAllPrices();
       }, 5 * 60 * 1000);
@@ -2973,7 +2863,6 @@ sb.auth.onAuthStateChange(handleAuthStateChange);
 // getSession attend lui-même l'initialisation du SDK ; aucun délai arbitraire.
 window.addEventListener('load', async () => {
   simUpdate(); // initialise le simulateur dès le chargement
-  _simApplyDefaultView();
   const version = _authEventVersion;
   try {
     const { data, error } = await sb.auth.getSession();
@@ -3019,68 +2908,6 @@ if (window.ResizeObserver) {
   });
 }
 
-// ─── DOG SCROLL HIDE (mobile) ────────────────────────────────────────────────
-window.addEventListener('scroll', () => {
-  if (window.innerWidth > 768) return;
-  const dog = document.getElementById('dogWidget');
-  if (!dog) return;
-  dog.classList.toggle('dog-hidden', window.scrollY > 80);
-}, { passive: true });
-
-function timeAgoFromDate(date) {
-  const t = date.getTime();
-  return isNaN(t) ? '' : timeAgo(t);
-}
-
-async function loadNewsIndices() {
-  const indices = [
-    { sym: '^GSPC',    name: 'S&P 500' },
-    { sym: '^NDX',     name: 'NASDAQ 100' },
-    { sym: '^STOXX50E',name: 'Euro Stoxx' },
-    { sym: '^FCHI',    name: 'CAC 40' },
-    { sym: 'BTC-EUR',  name: 'Bitcoin' },
-    { sym: 'ETH-EUR',  name: 'Ethereum' },
-    { sym: 'GC=F',     name: 'Or' },
-    { sym: 'SI=F',     name: 'Silver' },
-  ];
-  const el = document.getElementById('overviewIndices') || document.getElementById('newsIndices');
-  if (!el) return;
-  const pillsHTML = indices.map(i =>
-    `<div class="index-pill">
-      <div class="index-pill-name">${i.name}</div>
-      <div class="index-pill-val" id="idx-${i.sym.replace(/[^a-zA-Z0-9]/g,'_')}">…</div>
-    </div>`
-  ).join('');
-  el.innerHTML = pillsHTML;
-  // Remplir le clone pour le défilement infini mobile
-  const clone = document.getElementById('overviewIndicesClone');
-  if (clone) clone.innerHTML = pillsHTML.replace(/id="idx-/g, 'id="idx-clone-');
-  await MoumixCore.mapWithConcurrency(indices, 2, async idx => {
-    try {
-      const data = await yfFetch(`/v8/finance/chart/${encodeURIComponent(idx.sym)}?interval=1d&range=1d`);
-      const meta = data?.chart?.result?.[0]?.meta;
-      if (!meta) return;
-      const price = meta.regularMarketPrice;
-      const prev  = meta.chartPreviousClose || meta.previousClose || price;
-      const id    = 'idx-' + idx.sym.replace(/[^a-zA-Z0-9]/g,'_');
-      const el2   = document.getElementById(id);
-      if (el2) {
-        const chg = ((price - prev) / prev * 100);
-        const changeHtml = `<span style="font-size:0.62rem;color:${chg>=0?'var(--gain)':'var(--loss)'}">${chg>=0?'+':''}${chg.toFixed(2)}%</span>`;
-        const priceStr = price > 1000 ? Math.round(price).toLocaleString('fr-FR') : price.toFixed(2);
-        const valHTML = `<span style="font-size:0.75rem">${priceStr}</span> ${changeHtml}`;
-        el2.innerHTML = valHTML;
-        el2.classList.add('updated');
-        setTimeout(() => el2.classList.remove('updated'), TIMING_INDEX_UPDATE);
-        // Mettre à jour aussi le clone (défilement infini mobile)
-        const el2c = document.getElementById('idx-clone-' + idx.sym.replace(/[^a-zA-Z0-9]/g,'_'));
-        if (el2c) el2c.innerHTML = valHTML;
-      }
-    } catch(e) {}
-  });
-}
-
-let simViewMode = window.innerWidth <= 768 ? 'table' : 'graph';
 let simData = [];
 let simDataPess = [];
 let simDataOpti = [];
@@ -3243,15 +3070,6 @@ function simResetRates() {
   simUpdate();
 }
 
-function simSetView(mode, btn) {
-  simViewMode = mode;
-  document.querySelectorAll('.sim-view-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('sim-graph-wrap').style.display = mode === 'graph' ? '' : 'none';
-  if (mode === 'graph') requestAnimationFrame(() => simDrawChart());
-  document.getElementById('sim-table-wrap').style.display = mode === 'table' ? '' : 'none';
-  if (mode === 'table') simDrawTable();
-}
 
 function simContributionWeights(buckets, target) {
   const weights = new Map(buckets.map(bucket => [bucket.type, 0]));
@@ -3340,6 +3158,20 @@ function simUpdateDebounced() {
   _simUpdateTimer = setTimeout(simUpdate, TIMING_SIM_DEBOUNCE);
 }
 
+window.setTrajectoryYears = function setTrajectoryYears(years, button) {
+  const input = document.getElementById('sim-years');
+  if (!input) return;
+  input.value = String(years);
+  document.querySelectorAll('.trajectory-year-btn').forEach(item => item.classList.toggle('active', item === button));
+  simUpdate();
+};
+
+function syncTrajectoryYearButtons(years) {
+  document.querySelectorAll('.trajectory-year-btn').forEach(button => {
+    button.classList.toggle('active', Number.parseInt(button.textContent, 10) === years);
+  });
+}
+
 function simUpdateContributionHint(buckets, target) {
   const hint = document.getElementById('sim-contribution-hint');
   if (!hint) return;
@@ -3394,6 +3226,7 @@ function simUpdate() {
   const yearsInput = document.getElementById('sim-years');
   const monthly = Math.max(0, Math.min(100000, Number.parseFloat(monthlyInput?.value) || 0));
   const years = Math.max(1, Math.min(60, Number.parseInt(yearsInput?.value, 10) || 1));
+  syncTrajectoryYearButtons(years);
   const buckets = simGetPortfolioBuckets();
   const initial = simRenderPortfolioControls(buckets);
   const target = document.getElementById('sim-contribution-target')?.value || 'allocation';
@@ -3439,29 +3272,9 @@ function simUpdate() {
   }
   simRenderBreakdown(resReal);
 
-  if (simViewMode === 'graph') simDrawChart();
-  else simDrawTable();
+  simDrawChart();
 }
 
-// Applique la vue par défaut au premier rendu (mobile = tableau, desktop = graphique)
-function _simApplyDefaultView() {
-  const graphWrap = document.getElementById('sim-graph-wrap');
-  const tableWrap = document.getElementById('sim-table-wrap');
-  const btnGraph = document.getElementById('simViewGraph');
-  const btnTable = document.getElementById('simViewTable');
-  if (!graphWrap || !tableWrap) return;
-  if (simViewMode === 'table') {
-    graphWrap.style.display = 'none';
-    tableWrap.style.display = '';
-    if (btnGraph) btnGraph.classList.remove('active');
-    if (btnTable) btnTable.classList.add('active');
-  } else {
-    graphWrap.style.display = '';
-    tableWrap.style.display = 'none';
-    if (btnGraph) btnGraph.classList.add('active');
-    if (btnTable) btnTable.classList.remove('active');
-  }
-}
 
 function simDrawChart() {
   const svg = document.getElementById('sim-svg');
@@ -3559,20 +3372,20 @@ function simDrawChart() {
 
   svg.innerHTML = `
     <defs>
-      <!-- Optimiste gradient -->
+      <!-- Favorable gradient -->
       <linearGradient id="gOpti${uid}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#c27aff" stop-opacity="0.22"/>
-        <stop offset="100%" stop-color="#c27aff" stop-opacity="0"/>
+        <stop offset="0%" stop-color="#65a8ff" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="#65a8ff" stop-opacity="0"/>
       </linearGradient>
-      <!-- Réaliste gradient -->
+      <!-- Central gradient -->
       <linearGradient id="gReal${uid}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#00e5a0" stop-opacity="0.18"/>
-        <stop offset="100%" stop-color="#00e5a0" stop-opacity="0"/>
+        <stop offset="0%" stop-color="#55e6b1" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="#55e6b1" stop-opacity="0"/>
       </linearGradient>
-      <!-- Pessimiste gradient -->
+      <!-- Prudent gradient -->
       <linearGradient id="gPess${uid}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#ff7070" stop-opacity="0.10"/>
-        <stop offset="100%" stop-color="#ff7070" stop-opacity="0"/>
+        <stop offset="0%" stop-color="#ff7189" stop-opacity="0.10"/>
+        <stop offset="100%" stop-color="#ff7189" stop-opacity="0"/>
       </linearGradient>
       <!-- Glow filters -->
       <filter id="glowGreen${uid}" x="-20%" y="-20%" width="140%" height="140%">
@@ -3597,12 +3410,12 @@ function simDrawChart() {
       stroke-dasharray="4,4" opacity="0.45"/>
 
     <!-- Scenario lines -->
-    <path d="${pathD(simDataPess)}" fill="none" stroke="#ff7070" stroke-width="1.8"
+    <path d="${pathD(simDataPess)}" fill="none" stroke="#ff7189" stroke-width="1.8"
       stroke-linecap="round" stroke-linejoin="round" opacity="0.75"/>
-    <path d="${pathD(simDataOpti)}" fill="none" stroke="#c27aff" stroke-width="1.8"
+    <path d="${pathD(simDataOpti)}" fill="none" stroke="#65a8ff" stroke-width="1.8"
       stroke-linecap="round" stroke-linejoin="round" opacity="0.85"
       filter="url(#glowPurple${uid})"/>
-    <path d="${pathD(simData)}" fill="none" stroke="#00e5a0" stroke-width="2.5"
+    <path d="${pathD(simData)}" fill="none" stroke="#55e6b1" stroke-width="2.5"
       stroke-linecap="round" stroke-linejoin="round"
       filter="url(#glowGreen${uid})"/>
 
@@ -3613,15 +3426,15 @@ function simDrawChart() {
         stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="2,3"/>
       <!-- horizontal band (subtle) -->
       <!-- dots -->
-      <circle id="sim-ch-pess" cx="0" cy="0" r="4" fill="#ff7070"
+      <circle id="sim-ch-pess" cx="0" cy="0" r="4" fill="#ff7189"
         stroke="rgba(13,17,25,0.9)" stroke-width="2.5"/>
-      <circle id="sim-ch-real" cx="0" cy="0" r="5.5" fill="#00e5a0"
+      <circle id="sim-ch-real" cx="0" cy="0" r="5.5" fill="#55e6b1"
         stroke="rgba(13,17,25,0.9)" stroke-width="2.5"/>
-      <circle id="sim-ch-opti" cx="0" cy="0" r="4" fill="#c27aff"
+      <circle id="sim-ch-opti" cx="0" cy="0" r="4" fill="#65a8ff"
         stroke="rgba(13,17,25,0.9)" stroke-width="2.5"/>
       <!-- outer glow rings -->
       <circle id="sim-ch-real-glow" cx="0" cy="0" r="9" fill="none"
-        stroke="#00e5a0" stroke-width="1" opacity="0.3"/>
+        stroke="#55e6b1" stroke-width="1" opacity="0.3"/>
     </g>
 
     <!-- Hover rects (on top) -->
@@ -3677,16 +3490,16 @@ function simTooltip3(e, year, pess, real, opti, invested) {
   const gainPct = invested > 0 ? (gain / invested * 100).toFixed(0) : 0;
   document.getElementById('sim-tt-body').innerHTML = `
     <div class="sim-tt-row">
-      <span class="sim-tt-label"><span class="sim-tt-dot" style="background:#c27aff;box-shadow:0 0 6px #c27aff"></span>Optimiste</span>
-      <span class="sim-tt-val" style="color:#c27aff">${simFmt(opti)}</span>
+      <span class="sim-tt-label"><span class="sim-tt-dot" style="background:#65a8ff;box-shadow:0 0 6px #65a8ff"></span>Favorable</span>
+      <span class="sim-tt-val" style="color:#65a8ff">${simFmt(opti)}</span>
     </div>
     <div class="sim-tt-row">
-      <span class="sim-tt-label"><span class="sim-tt-dot" style="background:#00e5a0;box-shadow:0 0 6px #00e5a0"></span>Réaliste</span>
-      <span class="sim-tt-val" style="color:#00e5a0">${simFmt(real)}</span>
+      <span class="sim-tt-label"><span class="sim-tt-dot" style="background:#55e6b1;box-shadow:0 0 6px #55e6b1"></span>Central</span>
+      <span class="sim-tt-val" style="color:#55e6b1">${simFmt(real)}</span>
     </div>
     <div class="sim-tt-row">
-      <span class="sim-tt-label"><span class="sim-tt-dot" style="background:#ff7070"></span>Pessimiste</span>
-      <span class="sim-tt-val" style="color:#ff7070">${simFmt(pess)}</span>
+      <span class="sim-tt-label"><span class="sim-tt-dot" style="background:#ff7189"></span>Prudent</span>
+      <span class="sim-tt-val" style="color:#ff7189">${simFmt(pess)}</span>
     </div>
     <div class="sim-tt-divider"></div>
     <div class="sim-tt-row">
@@ -3695,7 +3508,7 @@ function simTooltip3(e, year, pess, real, opti, invested) {
     </div>
     ${year > 0 ? `<div class="sim-tt-row" style="margin-top:1px">
       <span class="sim-tt-label" style="font-size:0.62rem;opacity:0.6">Plus-value</span>
-      <span style="font-size:0.7rem;font-weight:600;color:${gain>=0?'#00e5a0':'#ff7070'}">${gain>=0?'+':''}${simFmt(gain)} (${gain>=0?'+':''}${gainPct}%)</span>
+      <span style="font-size:0.7rem;font-weight:600;color:${gain>=0?'#55e6b1':'#ff7189'}">${gain>=0?'+':''}${simFmt(gain)} (${gain>=0?'+':''}${gainPct}%)</span>
     </div>` : ''}
   `;
 
@@ -3716,88 +3529,6 @@ function simTooltip3(e, year, pess, real, opti, invested) {
 }
 
 
-let simTableScenario = 'real'; // 'pess' | 'real' | 'opti'
-
-function simSetTableScenario(scen, btn) {
-  simTableScenario = scen;
-  document.querySelectorAll('.sim-scen-btn').forEach(b => {
-    const isActive = b.dataset.scen === scen;
-    b.classList.toggle('active-scen', isActive);
-    b.style.fontWeight = isActive ? '600' : '400';
-    // Garder la bordure/bg colorée mais renforcer quand actif
-    if (b.dataset.scen === 'pess') {
-      b.style.background = isActive ? 'rgba(255,112,112,0.18)' : 'rgba(255,112,112,0.08)';
-      b.style.borderColor = isActive ? '#ff7070' : 'rgba(255,112,112,0.35)';
-    } else if (b.dataset.scen === 'real') {
-      b.style.background = isActive ? 'rgba(0,229,160,0.18)' : 'rgba(0,229,160,0.08)';
-      b.style.borderColor = isActive ? 'var(--accent)' : 'rgba(0,229,160,0.35)';
-    } else {
-      b.style.background = isActive ? 'rgba(194,122,255,0.18)' : 'rgba(194,122,255,0.08)';
-      b.style.borderColor = isActive ? '#c27aff' : 'rgba(194,122,255,0.35)';
-    }
-  });
-  simDrawTable();
-}
-
-function simDrawTable() {
-  const tbody = document.getElementById('sim-table-body');
-  if (!simData.length) return;
-  const isMobile = window.innerWidth <= 768;
-
-  // Affiche/cache le switch scénario mobile
-  const switchEl = document.getElementById('sim-table-scenario-switch');
-  if (switchEl) switchEl.style.display = isMobile ? 'flex' : 'none';
-
-  const thead = tbody.closest('table').querySelector('thead tr');
-
-  if (isMobile) {
-    // En mobile : 3 colonnes seulement — Année, Investi, + le scénario actif
-    const scenConf = {
-      pess: { label: 'Pessimiste', color: '#ff7070' },
-      real: { label: 'Réaliste',   color: 'var(--accent)' },
-      opti: { label: 'Optimiste',  color: '#c27aff' },
-    }[simTableScenario];
-    thead.innerHTML = `
-      <th class="sim-th sim-th-left">Année</th>
-      <th class="sim-th sim-th-right">Investi</th>
-      <th style="padding:8px 12px;text-align:right;color:${scenConf.color};font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid var(--border);font-weight:400">${scenConf.label}</th>
-    `;
-    tbody.innerHTML = simData.map((d, i) => {
-      const dp = simDataPess[i], do_ = simDataOpti[i];
-      if (!dp || !do_) return '';
-      const highlight = d.year % 10 === 0 && d.year > 0;
-      const scenVal = simTableScenario === 'pess' ? dp.capital : simTableScenario === 'opti' ? do_.capital : d.capital;
-      const scenColor = simTableScenario === 'pess' ? '#ff7070' : simTableScenario === 'opti' ? '#c27aff' : 'var(--text)';
-      const scenWeight = simTableScenario === 'real' ? '600' : '400';
-      return `<tr style="background:${highlight ? 'rgba(0,229,160,0.04)' : (i%2===0?'transparent':'rgba(255,255,255,0.01)')}">
-        <td style="padding:8px 12px;font-weight:${highlight?700:400}">${d.year === 0 ? 'Départ' : 'An ' + d.year}</td>
-        <td style="padding:8px 12px;text-align:right;font-family:'DM Mono',monospace;color:var(--muted)">${simFmt(d.invested)}</td>
-        <td style="padding:8px 12px;text-align:right;font-family:'DM Mono',monospace;color:${scenColor};font-weight:${scenWeight}">${simFmt(scenVal)}</td>
-      </tr>`;
-    }).join('');
-  } else {
-    // Desktop : tableau complet 5 colonnes
-    thead.innerHTML = `
-      <th class="sim-th sim-th-left">Année</th>
-      <th class="sim-th sim-th-right">Investi</th>
-      <th style="padding:8px 12px;text-align:right;color:#ff7070;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid var(--border);font-weight:400">Pessimiste</th>
-      <th style="padding:8px 12px;text-align:right;color:var(--accent);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid var(--border);font-weight:400">Réaliste</th>
-      <th style="padding:8px 12px;text-align:right;color:#c27aff;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid var(--border);font-weight:400">Optimiste</th>
-    `;
-    tbody.innerHTML = simData.map((d, i) => {
-      const dp = simDataPess[i], do_ = simDataOpti[i];
-      if (!dp || !do_) return '';
-      const highlight = d.year % 10 === 0 && d.year > 0;
-      return `<tr style="background:${highlight ? 'rgba(0,229,160,0.04)' : (i%2===0?'transparent':'rgba(255,255,255,0.01)')}">
-        <td style="padding:8px 12px;font-weight:${highlight?700:400}">${d.year === 0 ? 'Départ' : 'An ' + d.year}</td>
-        <td style="padding:8px 12px;text-align:right;font-family:'DM Mono',monospace;color:var(--muted)">${simFmt(d.invested)}</td>
-        <td style="padding:8px 12px;text-align:right;font-family:'DM Mono',monospace;color:#ff7070">${simFmt(dp.capital)}</td>
-        <td style="padding:8px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:600">${simFmt(d.capital)}</td>
-        <td style="padding:8px 12px;text-align:right;font-family:'DM Mono',monospace;color:#c27aff">${simFmt(do_.capital)}</td>
-      </tr>`;
-    }).join('');
-  }
-}
 
 // ─── TRI POSITIONS ────────────────────────────────────────────────────────────
 let posSort = { key: null, asc: false };
@@ -3930,19 +3661,9 @@ function showAppUpdatePrompt(onUpdate) {
 // ─── App namespace (optional) ───────────────────────────────────────────────
 window.App = window.App || {};
 window.App.authRecoveryVersion = '2026-08-28.1';
-window.App.getProjectionContext = () => ({
-  user: currentUser,
-  accounts: accounts.map(account => ({ ...account })),
-  positions: positions.map(position => ({ ...position })),
-  buckets: simGetPortfolioBuckets().map(bucket => ({ ...bucket })),
-});
-window.App.getSupabaseClient = () => sb;
-window.App.showDialog = showDialog;
-window.App.hideDialog = hideDialog;
-window.App.showToast = showToast;
 for (const k of ['openMobileActions', 'closeMobileActions', 'runMobileAction']) {
   window.App[k] = window[k];
 }
-for (const k of ['addAccount', 'cancelAddPrel', 'cancelLivretEdit', 'closeEditPosition', 'closeGoalModal', 'closeModal', 'confirmAddPrel', 'confirmEditPosition', 'confirmEditPrel', 'confirmLivretSolde', 'confirmPosition', 'deleteAccount', 'deleteGoal', 'deletePosition', 'deletePrel', 'dogClick', 'editGoal', 'editLivretSolde', 'editPrel', 'exportDataBackup', 'openAddGoal', 'openAddPrel', 'openEditPosition', 'openModal', 'refreshAllPrices', 'renderPrelevements', 'saveGoal', 'selectGoalEmoji', 'selectTickerByIndex', 'setChartPeriod', 'setPosSide', 'signOut', 'simNormalizeRate', 'simResetRates', 'simSetRate', 'simSetView', 'sortPositions', 'switchPosTab', 'switchTab', 'toggleAll', 'toggleType', 'toggleUserMenu']) {
+for (const k of ['addAccount', 'cancelAddPrel', 'cancelLivretEdit', 'closeEditPosition', 'closeGoalModal', 'closeModal', 'confirmAddPrel', 'confirmEditPosition', 'confirmEditPrel', 'confirmLivretSolde', 'confirmPosition', 'deleteAccount', 'deleteGoal', 'deletePosition', 'deletePrel', 'editGoal', 'editLivretSolde', 'editPrel', 'exportDataBackup', 'openAddGoal', 'openAddPrel', 'openEditPosition', 'openModal', 'refreshAllPrices', 'renderPrelevements', 'saveGoal', 'selectGoalEmoji', 'selectTickerByIndex', 'setAllocationMode', 'setChartPeriod', 'setPosSide', 'setTrajectoryYears', 'signOut', 'simNormalizeRate', 'simResetRates', 'simSetRate', 'sortPositions', 'switchPosTab', 'switchTab', 'toggleAll', 'toggleType', 'toggleUserMenu']) {
   if (typeof window[k] === 'function') window.App[k] = window[k];
 }
