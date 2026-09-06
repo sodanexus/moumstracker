@@ -1,22 +1,44 @@
-# Moumix Finance — historique des modifications
+# Moumix 2.0.0 — refonte patrimoniale
 
-## 1.2.0 — plan patrimonial privé
+Cette version change l’expérience et l’identité, mais conserve le modèle Supabase existant. Aucun script SQL ni recalcul rétroactif n’est nécessaire.
 
-- Dossier patrimonial activable pour un seul utilisateur sans changer la projection de l’autre compte
-- Valeurs personnelles de départ synchronisées automatiquement avec les comptes et positions Moumix
-- Situation du foyer, revenus, réserve et patrimoine de la compagne modifiables
-- Plan mensuel libre : ajout, suppression, dates et montants distincts avant/après achat
-- Projet immobilier complet : prix, frais, apport, prêt, taux, durée, assurance, taxe et entretien
-- Estimation du seuil d’apport, de la date d’achat et de l’âge correspondant
-- Projection du patrimoine financier et de la valeur nette immobilière sur trois scénarios
-- Affichage du résultat central en valeur nominale et en pouvoir d’achat actuel
-- Héritage exclu par défaut et activable seulement de manière explicite
-- Point zéro patrimonial et journal daté des changements
-- Nouvelle table isolée par RLS, sans droit d’insertion ou de suppression depuis le navigateur
-- Protection contre l’écrasement d’une modification faite depuis un autre appareil
-- Aucune information personnelle ni identifiant propriétaire dans le dépôt public
+## Interface et identité
 
-## 1.1.0 — mise à jour technique ciblée
+- nouveau logo vectoriel et nouvelles icônes PWA ;
+- palette bleu-encre, vert doux et bleu, avec une hiérarchie uniforme ;
+- navigation recentrée sur Synthèse, Portefeuille et Trajectoire ;
+- en-tête mobile allégé, avec USD/EUR et actions regroupées derrière les trois points ;
+- Shiba, messages contextuels et bandeau d’indices supprimés ;
+- zones sûres iPhone et protections contre les zooms accidentels conservées.
+
+## Synthèse
+
+- patrimoine total remis au premier plan ;
+- capital investi, plus-value et variation présentés comme trois mesures secondaires ;
+- courbe patrimoniale conservée ;
+- nouvelle allocation en anneau, regroupable par poche, compte ou actif ;
+- septième élément et suivants regroupés sous « Autres » pour éviter le fouillis ;
+- aperçu des comptes, de leur poids et de leur performance à la place des jalons automatiques.
+
+## Portefeuille et trajectoire
+
+- comptes, positions, recherche de ticker, achats, ventes, modifications, mouvements et prélèvements intégralement conservés ;
+- trajectoire automatiquement fondée sur les comptes et positions existants ;
+- réglages réduits à l’effort mensuel, l’horizon et la destination ;
+- horizons rapides de 5, 10, 20 et 30 ans ;
+- trois lectures : prudent, central et favorable ;
+- hypothèses par poche disponibles dans un volet repliable ;
+- objectifs personnels conservés, séparés des anciens jalons patrimoniaux.
+
+## Données
+
+- aucune table ajoutée, supprimée ou renommée ;
+- aucune donnée existante modifiée par le déploiement ;
+- robustesse des cotations, snapshots, authentification et mises à jour PWA de la version 1.1.0 conservée.
+
+---
+
+# Moumix Finance 1.1.0 — mise à jour technique ciblée
 
 Cette mise à jour ne lance aucune migration et ne modifie pas les lignes Supabase existantes lors du déploiement.
 

@@ -1,4 +1,4 @@
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '2.0.0';
 const CACHE_NAME = `moumix-shell-${APP_VERSION}`;
 const APP_SHELL = [
   './',
@@ -6,10 +6,10 @@ const APP_SHELL = [
   './version.json',
   './manifest.json',
   './assets/css/app.css',
+  './assets/css/v2.css',
+  './assets/brand/moumix-mark.svg',
   './assets/js/core.js',
-  './assets/js/private-plan-core.js',
   './assets/js/app.js',
-  './assets/js/private-plan.js',
   './assets/js/history-import.js',
   './apple-touch-icon.png',
   './icon-192.png',

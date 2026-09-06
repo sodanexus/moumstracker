@@ -3,21 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Moumix Finance</title>
-<meta name="description" content="Tableau de bord privé pour suivre son patrimoine, ses comptes et ses projections.">
-<meta name="moumix-version" content="1.2.0">
-<link rel="icon" type="image/png" href="data:image/png;base64,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">
+<title>Moumix — Patrimoine</title>
+<meta name="description" content="Moumix, le tableau de bord privé pour comprendre, organiser et suivre son patrimoine.">
+<meta name="moumix-version" content="2.0.0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Moumix Finance">
-<meta name="theme-color" content="#0a0c0f">
+<meta name="apple-mobile-web-app-title" content="Moumix">
+<meta name="theme-color" content="#091013">
 <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="./assets/brand/moumix-mark.svg">
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="./assets/css/app.css">
+<link rel="stylesheet" href="./assets/css/v2.css">
 </head>
 <body>
   <!-- OFFLINE BANNER -->
@@ -32,8 +33,13 @@
 <!-- LOGIN -->
 <div class="login-screen hidden" id="loginScreen">
   <div class="login-box">
-    <div class="login-logo">Moumix<span> Finance</span></div>
-    <div class="login-sub">Suivi de patrimoine personnel</div>
+    <div class="login-brand">
+      <img src="./assets/brand/moumix-mark.svg" width="54" height="54" alt="">
+      <div>
+        <div class="login-brand-name">Moumix</div>
+        <div class="login-brand-sub">Votre patrimoine, au même endroit.</div>
+      </div>
+    </div>
     <form onsubmit="event.preventDefault(); submitAuth()" autocomplete="on">
       <div class="form-row">
         <label for="auth-email">Email</label>
@@ -94,7 +100,9 @@
 
 <div class="app hidden" id="mainApp">
   <header>
-    <div class="logo">Moumix<span> Finance</span></div>
+    <div class="brand-mark" aria-label="Moumix Finance" title="Moumix Finance">
+      <img src="./assets/brand/moumix-mark.svg" width="44" height="44" alt="">
+    </div>
     <div class="hdr-actions">
         <div id="eurusd-widget" class="eurusd-widget" title="Taux de change USD/EUR">
         <span class="eurusd-label">USD/EUR</span>
@@ -102,8 +110,14 @@
         <span id="eurusd-change" class="eurusd-change"></span>
       </div>
 
-      <button type="button" class="btn btn-sm" id="openAccountBtn" onclick="openModal('account')">+ Compte</button>
-      <button type="button" class="btn btn-sm btn-primary" id="openPositionBtn" onclick="openModal('position')">+ Position</button>
+      <button type="button" class="btn btn-sm btn-icon" id="openAccountBtn" onclick="openModal('account')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Compte
+      </button>
+      <button type="button" class="btn btn-sm btn-primary btn-icon" id="openPositionBtn" onclick="openModal('position')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Position
+      </button>
       <div class="user-menu" id="userMenu">
         <div class="user-btn" role="button" tabindex="0" aria-haspopup="menu" aria-expanded="false" onclick="toggleUserMenu()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleUserMenu()}">
           <div class="user-avatar" id="userAvatar">?</div>
@@ -122,9 +136,18 @@
   <!-- ONGLETS NAVIGATION -->
   <div class="navigation-bar">
     <div class="tabs-nav" id="mainTabs" role="tablist" aria-label="Navigation principale">
-      <button type="button" id="nav-overview" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-overview" onclick="switchTab('overview', this)">Vue d'ensemble</button>
-      <button type="button" id="nav-details" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-details" onclick="switchTab('details', this)">Comptes</button>
-      <button type="button" id="nav-simulator" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-simulator" onclick="switchTab('simulator', this)">Projections</button>
+      <button type="button" id="nav-overview" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-overview" onclick="switchTab('overview', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h6V4H4v9Zm10 7h6V11h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"/></svg>
+        <span>Synthèse</span>
+      </button>
+      <button type="button" id="nav-details" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-details" onclick="switchTab('details', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5h18M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M7 15h4"/></svg>
+        <span>Portefeuille</span>
+      </button>
+      <button type="button" id="nav-simulator" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-simulator" onclick="switchTab('simulator', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 17 5-5 4 3 7-8"/><path d="M15 7h5v5"/></svg>
+        <span>Trajectoire</span>
+      </button>
     </div>
     <button type="button" class="mobile-actions-toggle" id="mobileActionsBtn" aria-label="Actions et mon compte" title="Actions et mon compte" aria-haspopup="dialog" aria-controls="mobileActionsModal" aria-expanded="false" onclick="openMobileActions()">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
@@ -133,31 +156,35 @@
 
   <!-- TAB: VUE D'ENSEMBLE -->
   <div class="tab-panel active" id="tab-overview" role="tabpanel" aria-labelledby="nav-overview">
-    <!-- ── Indices marché ───────────────────────────────────────────── -->
-    <div class="indices-ticker-outer" id="indicesTickerOuter">
-      <div class="indices-ticker-track" id="indicesTickerTrack">
-        <div id="overviewIndices" class="indices-ticker-inner"></div>
-        <div id="overviewIndicesClone" class="indices-ticker-inner" aria-hidden="true"></div>
+  <section class="wealth-hero" aria-labelledby="wealthHeading">
+    <div class="wealth-primary">
+      <div class="wealth-eyebrow"><span class="wealth-live-dot" aria-hidden="true"></span><span id="wealthHeading">Patrimoine suivi</span><span aria-hidden="true">·</span><span id="lastUpdateStat" class="wealth-update-time">—</span></div>
+      <div class="total-value" id="totalValue">—</div>
+      <div class="filter-toggles" id="filterToggles" aria-label="Filtrer le patrimoine par poche"></div>
+    </div>
+    <div class="wealth-metrics">
+      <div class="wealth-metric">
+        <div class="wealth-metric-label">Capital investi</div>
+        <div class="wealth-metric-value" id="capitalInvested">—</div>
+      </div>
+      <div class="wealth-metric">
+        <div class="wealth-metric-label">Plus-value latente</div>
+        <div class="wealth-metric-value" id="totalPnl">—</div>
+      </div>
+      <div class="wealth-metric">
+        <div class="wealth-metric-label" id="periodVarLabel">Variation globale · 1 sem.</div>
+        <div class="wealth-metric-value" id="periodVarStat">—</div>
       </div>
     </div>
-
-  <div class="total-banner">
-    <div class="flex-1">
-      <div class="total-label">Patrimoine total</div>
-      <div class="total-value" id="totalValue">—</div>
-      <div class="filter-toggles" id="filterToggles"></div>
-    </div>
-    <div class="total-stats">
-      <div class="stat"><div class="stat-label">Capital investi</div><div class="stat-val" id="capitalInvested">—</div></div>
-      <div class="stat"><div class="stat-label">Plus-value</div><div class="stat-val" id="totalPnl">—</div></div>
-      <div class="stat"><div class="stat-label" id="periodVarLabel">Variation 1S</div><div class="stat-val" id="periodVarStat">—</div></div>
-    </div>
-  </div>
+  </section>
 
   <!-- GRAPHIQUE PATRIMOINE -->
   <div class="card chart-card">
     <div class="card-header">
-      <div class="card-title">Évolution globale du patrimoine</div>
+      <div>
+        <div class="card-title">Votre progression</div>
+        <div class="card-subtitle">Évolution du patrimoine total, tous comptes confondus</div>
+      </div>
       <div style="display:flex;align-items:center;gap:10px">
         <div class="chart-periods" id="chartPeriods">
           <button class="period-btn active" onclick="setChartPeriod('1S',this)">1S</button>
@@ -166,7 +193,7 @@
           <button class="period-btn" onclick="setChartPeriod('1A',this)">1A</button>
           <button class="period-btn" onclick="setChartPeriod('Tout',this)">Tout</button>
         </div>
-        <button class="btn btn-sm" onclick="openHistoryImport()" title="Importer un historique passé" style="font-size:0.68rem;padding:4px 10px;border-radius:6px;color:var(--muted);border-color:var(--border)">⊕ Historique</button>
+        <button class="btn btn-sm" onclick="openHistoryImport()" title="Importer un historique passé">Importer</button>
       </div>
     </div>
     <div class="card-body">
@@ -182,17 +209,30 @@
     </div>
   </div>
 
-  <div class="grid">
+  <div class="overview-grid">
     <div class="card">
-      <div class="card-header"><div class="card-title">Allocation</div></div>
+      <div class="card-header">
+        <div>
+          <div class="card-title">Où est votre argent ?</div>
+          <div class="card-subtitle">Une lecture à la fois, sans empiler les graphiques</div>
+        </div>
+        <div class="allocation-mode" role="group" aria-label="Regrouper l'allocation">
+          <button type="button" class="allocation-mode-btn active" aria-pressed="true" onclick="setAllocationMode('type',this)">Poches</button>
+          <button type="button" class="allocation-mode-btn" aria-pressed="false" onclick="setAllocationMode('account',this)">Comptes</button>
+          <button type="button" class="allocation-mode-btn" aria-pressed="false" onclick="setAllocationMode('asset',this)">Actifs</button>
+        </div>
+      </div>
       <div class="card-body" id="allocContent"><div class="empty-state">Ajoutez des positions</div></div>
     </div>
-    <div class="card" style="display:flex;flex-direction:column">
+    <div class="card">
       <div class="card-header">
-        <div class="card-title">Jalons patrimoniaux <span style="font-size:.62rem;color:var(--muted);font-weight:400">· tous comptes</span></div>
-        <span id="milestoneBadge" style="font-size:0.6rem;padding:2px 8px;border-radius:4px;background:rgba(0,229,160,0.12);color:var(--accent);font-weight:600"></span>
+        <div>
+          <div class="card-title">Mes poches</div>
+          <div class="card-subtitle">Comptes et établissements suivis</div>
+        </div>
+        <span id="accountCountBadge" class="count-badge"></span>
       </div>
-      <div class="card-body" id="byAccountContent" style="flex:1"><div class="empty-state">En attente de données…</div></div>
+      <div class="card-body" id="byAccountContent"><div class="empty-state">En attente de données…</div></div>
     </div>
   </div>
 
@@ -201,12 +241,13 @@
   <!-- TAB: DÉTAILS -->
   <div class="tab-panel" id="tab-details" role="tabpanel" aria-labelledby="nav-details">
 
-  <div style="margin-bottom:24px">
-    <div class="page-title">Vos comptes & positions</div>
-    <div class="page-subtitle">Gérez vos comptes, positions et prélèvements récurrents.</div>
+  <div class="page-heading">
+    <div class="page-kicker">Portefeuille</div>
+    <div class="page-title">Vos comptes et vos actifs</div>
+    <div class="page-subtitle">Retrouvez chaque poche, suivez les valeurs et gardez l’historique de vos opérations.</div>
   </div>
 
-  <div class="section-title">Comptes</div>
+  <div class="section-title">Mes poches</div>
   <div class="accounts-grid" id="accountsGrid">
     <div class="empty-state" style="grid-column:1/-1">Aucun compte — <button type="button" class="empty-action" onclick="openModal('account')">ajouter un compte</button></div>
   </div>
@@ -215,7 +256,7 @@
     <div class="card-header" style="align-items:center;gap:12px;padding-bottom:0;border-bottom:none">
       <div style="display:flex;gap:0;flex:1;border-bottom:1px solid var(--border);margin-bottom:-1px">
         <button id="tab-pos-btn" class="tab-btn active" style="border-bottom:2px solid var(--accent);color:var(--accent);margin-bottom:-1px" onclick="switchPosTab('pos')">Positions</button>
-        <button id="tab-pos-tx-btn" class="tab-btn" style="border-bottom:2px solid transparent;margin-bottom:-1px" onclick="switchPosTab('tx')">Historique</button>
+        <button id="tab-pos-tx-btn" class="tab-btn" style="border-bottom:2px solid transparent;margin-bottom:-1px" onclick="switchPosTab('tx')">Mouvements</button>
       </div>
       <button class="btn btn-sm" id="refreshBtn" onclick="refreshAllPrices()" style="flex-shrink:0;margin-bottom:0">↻ <span id="updateBadge">Actualiser</span></button>
     </div>
@@ -249,10 +290,13 @@
   </div>
 
   <!-- PRÉLÈVEMENTS -->
-  <div class="section-title" style="margin-top:8px">Mes prélèvements</div>
+  <div class="section-title" style="margin-top:8px">Budget récurrent</div>
   <div class="card" style="margin-bottom:24px">
     <div class="card-header">
-      <div class="card-title">Prélèvements récurrents</div>
+      <div>
+        <div class="card-title">Prélèvements récurrents</div>
+        <div class="card-subtitle">Une vue simple des charges qui reviennent</div>
+      </div>
       <button class="btn btn-sm btn-primary" onclick="openAddPrel()">+ Ajouter</button>
     </div>
     <div class="card-body">
@@ -285,130 +329,24 @@
 
   </div><!-- end tab-details -->
 
-  <!-- TAB: SIMULATEUR INTÉRÊTS COMPOSÉS -->
+  <!-- TAB: TRAJECTOIRE PATRIMONIALE -->
   <div class="tab-panel" id="tab-simulator" role="tabpanel" aria-labelledby="nav-simulator">
-    <div>
-
-      <!-- PLAN PATRIMONIAL PRIVÉ — affiché uniquement si Supabase renvoie une ligne autorisée par RLS -->
-      <section id="privatePlanRoot" class="private-plan hidden" aria-labelledby="privatePlanTitle">
-        <div class="private-plan-header">
-          <div>
-            <div class="private-plan-kicker"><span></span>Dossier patrimonial privé</div>
-            <h1 class="page-title" id="privatePlanTitle">Votre plan patrimonial</h1>
-            <div class="page-subtitle" id="privatePlanSubtitle">Situation personnelle et stratégie à long terme</div>
-          </div>
-          <button type="button" class="btn btn-primary private-plan-edit" id="privatePlanEditBtn">Modifier ma situation</button>
-        </div>
-
-        <div class="private-plan-status" role="status">
-          <span id="privatePlanBaselineDate">Point zéro</span>
-          <span aria-hidden="true">·</span>
-          <span id="privatePlanUpdatedAt">Chargement…</span>
-          <span class="private-plan-lock">Privé à ce compte</span>
-        </div>
-
-        <div class="private-plan-tabs" role="tablist" aria-label="Vues du plan patrimonial">
-          <button type="button" class="private-plan-tab active" id="privatePlanGlobalTab" role="tab" aria-selected="true" aria-controls="privatePlanGlobalPanel" data-private-view="global">Plan global</button>
-          <button type="button" class="private-plan-tab" id="privatePlanHouseTab" role="tab" aria-selected="false" aria-controls="privatePlanHousePanel" data-private-view="house">Maison</button>
-          <button type="button" class="private-plan-tab" id="privatePlanRetirementTab" role="tab" aria-selected="false" aria-controls="privatePlanRetirementPanel" data-private-view="retirement">Long terme</button>
-        </div>
-
-        <div class="private-plan-panel active" id="privatePlanGlobalPanel" role="tabpanel" aria-labelledby="privatePlanGlobalTab" data-private-panel="global">
-          <div class="private-plan-metrics">
-            <article class="private-plan-metric"><span>Patrimoine personnel</span><strong id="privatePersonalTotal">—</strong><small>Comptes Moumix actualisés</small></article>
-            <article class="private-plan-metric"><span>Patrimoine du foyer</span><strong id="privateHouseholdTotal">—</strong><small>Personnel + données de votre compagne</small></article>
-            <article class="private-plan-metric"><span>Effort avant achat</span><strong id="privateMonthlyBefore">—</strong><small id="privateMonthlyBeforeDetail">Versements programmés</small></article>
-            <article class="private-plan-metric"><span>Horizon</span><strong id="privateHorizon">—</strong><small>Projection modifiable</small></article>
-          </div>
-
-          <div class="private-plan-two-columns">
-            <article class="card private-plan-card">
-              <div class="card-header"><div class="card-title">Plan mensuel</div><span class="private-plan-card-meta" id="privatePlanStart">—</span></div>
-              <div class="private-plan-flow-list" id="privatePlanFlows"></div>
-              <div class="private-plan-total-row"><span>Après l’achat</span><strong id="privateMonthlyAfter">—</strong></div>
-            </article>
-
-            <article class="card private-plan-card">
-              <div class="card-header"><div class="card-title">Garde-fous retenus</div></div>
-              <ul class="private-plan-rules" id="privatePlanRules"></ul>
-            </article>
-          </div>
-
-          <article class="card private-plan-card private-plan-context-card">
-            <div class="card-header"><div class="card-title">Contexte</div><span class="private-plan-card-meta">Informatif, non utilisé pour extrapoler vos revenus</span></div>
-            <div class="private-plan-context-grid" id="privatePlanContext"></div>
-          </article>
-        </div>
-
-        <div class="private-plan-panel" id="privatePlanHousePanel" role="tabpanel" aria-labelledby="privatePlanHouseTab" data-private-panel="house" hidden>
-          <div class="private-plan-metrics">
-            <article class="private-plan-metric"><span>Mobilisable aujourd’hui</span><strong id="privateMobilizableNow">—</strong><small>Après conservation de la réserve</small></article>
-            <article class="private-plan-metric"><span>Reste à constituer</span><strong id="privateDownPaymentRemaining">—</strong><small id="privateDownPaymentTarget">Pour atteindre l’apport</small></article>
-            <article class="private-plan-metric private-plan-metric-accent"><span>Achat envisageable</span><strong id="privatePurchaseDate">—</strong><small>Scénario central, seuil financier uniquement</small></article>
-            <article class="private-plan-metric"><span>Mensualité calculée</span><strong id="privateMortgagePayment">—</strong><small>Hors assurance et charges</small></article>
-          </div>
-
-          <article class="card private-plan-card">
-            <div class="private-house-progress-head">
-              <div><span>Capacité d’apport sécurisée</span><strong id="privateHouseProgressValue">—</strong></div>
-              <span id="privateHouseProgressPct">—</span>
-            </div>
-            <div class="private-house-progress"><span id="privateHouseProgressBar"></span></div>
-            <div class="private-house-progress-foot"><span id="privateLiquidDetail">—</span><span id="privateReserveDetail">—</span></div>
-          </article>
-
-          <div class="private-plan-two-columns">
-            <article class="card private-plan-card">
-              <div class="card-header"><div class="card-title">Projet immobilier</div></div>
-              <dl class="private-plan-definition" id="privateHouseDetails"></dl>
-            </article>
-            <article class="card private-plan-card">
-              <div class="card-header"><div class="card-title">Après l’achat</div></div>
-              <dl class="private-plan-definition" id="privateAfterPurchaseDetails"></dl>
-              <div class="private-plan-warning" id="privateHouseWarning"></div>
-            </article>
-          </div>
-        </div>
-
-        <div class="private-plan-panel" id="privatePlanRetirementPanel" role="tabpanel" aria-labelledby="privatePlanRetirementTab" data-private-panel="retirement" hidden>
-          <div class="private-plan-scenarios" id="privatePlanScenarios"></div>
-          <article class="card private-plan-card">
-            <div class="card-header">
-              <div><div class="card-title">Évolution du patrimoine net du foyer</div><div class="private-plan-card-meta">Actifs financiers + valeur nette de la résidence principale</div></div>
-            </div>
-            <div class="private-plan-chart-wrap"><svg id="privatePlanChart" viewBox="0 0 760 280" role="img" aria-label="Projection du patrimoine net selon trois scénarios"></svg></div>
-            <div class="private-plan-chart-legend"><span class="pess">Prudent</span><span class="real">Central</span><span class="opti">Favorable</span></div>
-          </article>
-          <div class="private-plan-two-columns">
-            <article class="card private-plan-card"><div class="card-header"><div class="card-title">Résultat central</div></div><dl class="private-plan-definition" id="privateRetirementDetails"></dl></article>
-            <article class="card private-plan-card"><div class="card-header"><div class="card-title">Ce que le calcul respecte</div></div><ul class="private-plan-rules" id="privateProjectionRules"></ul></article>
-          </div>
-        </div>
-
-        <details class="private-plan-baseline">
-          <summary>Situation de référence et historique des modifications</summary>
-          <div class="private-plan-baseline-body">
-            <div class="private-plan-baseline-note" id="privatePlanBaselineNote"></div>
-            <div class="private-plan-update-list" id="privatePlanChangeLog"></div>
-          </div>
-        </details>
-      </section>
-
-      <div id="standardProjectionContent">
+    <div class="trajectory-page">
 
       <!-- Titre -->
-      <div style="margin-bottom:24px">
-        <div class="page-title">Projection de votre patrimoine</div>
-        <div class="page-subtitle">Projetez directement les comptes et actifs déjà présents dans votre portefeuille.</div>
+      <div class="page-heading">
+        <div class="page-kicker">Trajectoire</div>
+        <div class="page-title">Et si vous gardiez ce rythme ?</div>
+        <div class="page-subtitle">Une estimation lisible, construite à partir de votre patrimoine réel et de quelques hypothèses que vous contrôlez.</div>
       </div>
 
       <!-- Source synchronisée avec les données déjà enregistrées -->
-      <div class="card sim-source-card">
+      <div class="trajectory-source">
         <div class="card-body">
           <div class="sim-source-layout">
             <div class="sim-source-copy">
-              <div class="sim-source-eyebrow"><span class="sim-source-dot"></span>Portefeuille actuel synchronisé</div>
-              <div class="sim-source-value" id="sim-source-total">—</div>
+              <div class="trajectory-source-label"><span class="sim-source-dot"></span>Point de départ synchronisé</div>
+              <div class="trajectory-source-value" id="sim-source-total">—</div>
               <div class="sim-source-meta" id="sim-source-meta">Chargement de vos comptes et positions…</div>
             </div>
             <div class="sim-source-types" id="sim-source-types" aria-label="Répartition actuelle"></div>
@@ -418,15 +356,20 @@
       </div>
 
       <!-- Inputs + Résultats côte à côte -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="trajectory-layout">
 
         <!-- Paramètres -->
-        <div class="card">
-          <div class="card-header"><div class="card-title">Votre scénario</div></div>
+        <div class="card trajectory-controls">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Votre rythme</div>
+              <div class="card-subtitle">Trois réglages suffisent</div>
+            </div>
+          </div>
           <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
 
             <div class="sim-field">
-              <label class="sim-field-label" for="sim-monthly">Nouveaux versements</label>
+              <label class="sim-field-label" for="sim-monthly">Effort d’épargne mensuel</label>
               <div class="sim-input-wrap">
                 <input type="number" id="sim-monthly" min="0" max="100000" step="50" value="200" oninput="simUpdateDebounced()" class="sim-input">
                 <span class="sim-unit">€ / mois</span>
@@ -434,15 +377,21 @@
             </div>
 
             <div class="sim-field">
-              <label class="sim-field-label" for="sim-years">Horizon de projection</label>
+              <label class="sim-field-label" for="sim-years">Horizon</label>
               <div class="sim-input-wrap">
                 <input type="number" id="sim-years" min="1" max="60" step="1" value="20" oninput="simUpdateDebounced()" class="sim-input">
                 <span class="sim-unit">ans</span>
               </div>
+              <div class="trajectory-years" aria-label="Choisir rapidement un horizon">
+                <button type="button" class="trajectory-year-btn" onclick="setTrajectoryYears(5,this)">5 ans</button>
+                <button type="button" class="trajectory-year-btn" onclick="setTrajectoryYears(10,this)">10 ans</button>
+                <button type="button" class="trajectory-year-btn active" onclick="setTrajectoryYears(20,this)">20 ans</button>
+                <button type="button" class="trajectory-year-btn" onclick="setTrajectoryYears(30,this)">30 ans</button>
+              </div>
             </div>
 
             <div class="sim-field">
-              <label class="sim-field-label" for="sim-contribution-target">Affectation des versements</label>
+              <label class="sim-field-label" for="sim-contribution-target">Destination</label>
               <select id="sim-contribution-target" onchange="simUpdate()">
                 <option value="allocation">Selon la répartition actuelle</option>
               </select>
@@ -451,32 +400,32 @@
 
             <details class="sim-settings-details">
               <summary>
-                <span>Hypothèses par catégorie</span>
+                <span>Ajuster les hypothèses</span>
                 <span class="sim-weighted-rate" id="sim-weighted-rate">—</span>
               </summary>
               <div class="sim-settings-body">
-                <div class="sim-help">Modifiez ici le rendement annuel moyen supposé pour chaque catégorie. Les scénarios prudent et favorable sont calculés autour de ces valeurs.</div>
+                <div class="sim-help">Chaque poche possède une hypothèse annuelle modifiable. Les variantes prudente et favorable sont calculées autour de ce scénario central.</div>
                 <div class="sim-category-settings" id="sim-category-settings"></div>
                 <button type="button" class="sim-reset-btn" onclick="simResetRates()">Rétablir les hypothèses proposées</button>
               </div>
             </details>
 
-            <div class="sim-disclaimer">Simulation indicative, pas une prédiction ni un conseil financier. Les rendements sont modifiables et ne sont pas déduits des performances passées.</div>
+            <div class="sim-disclaimer">Estimation indicative, sans garantie et sans conseil financier. Elle ne déduit jamais le futur des performances passées.</div>
 
           </div>
         </div>
 
         <!-- Résultats 3 scénarios -->
-        <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="trajectory-results">
 
-          <div class="card" style="flex:1">
+          <div class="card trajectory-main-card">
             <div class="card-body" style="padding:16px 20px">
-              <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:14px">Scénarios de rendement</div>
+              <div class="card-subtitle" style="margin-bottom:14px">Valeur estimée au terme de l’horizon</div>
               <div class="sim-scenario-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-radius:10px;overflow:hidden">
 
-                <!-- Pessimiste -->
+                <!-- Prudent -->
                 <div class="scen-cell">
-                  <div class="scen-label scen-label-pess">Pessimiste</div>
+                  <div class="scen-label scen-label-pess">Prudent</div>
                   <div id="sim-rate-pess" class="sim-rate-label">4,0%</div>
                   <div id="sim-res-total-pess" class="scen-total">—</div>
                   <div id="sim-res-interest-pess" class="scen-interest" style="color:#ff7070">—</div>
@@ -493,10 +442,10 @@
                   </div>
                 </div>
 
-                <!-- Réaliste -->
+                <!-- Central -->
                 <div class="scen-cell-mid">
-                  <div class="votre-taux-badge" style="position:absolute;top:-1px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-size:0.55rem;font-weight:700;padding:2px 8px;border-radius:0 0 6px 6px;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap">Votre mix</div>
-                  <div class="scen-label scen-label-real">Réaliste</div>
+                  <div class="votre-taux-badge" style="position:absolute;top:-1px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-size:0.55rem;font-weight:700;padding:2px 8px;border-radius:0 0 6px 6px;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap">Central</div>
+                  <div class="scen-label scen-label-real">Rythme attendu</div>
                   <div id="sim-rate-real" class="sim-rate-label">7,0%</div>
                   <div id="sim-res-total-real" class="scen-total-real">—</div>
                   <div id="sim-res-interest-real" class="scen-interest" style="color:var(--gain)">—</div>
@@ -513,9 +462,9 @@
                   </div>
                 </div>
 
-                <!-- Optimiste -->
+                <!-- Favorable -->
                 <div class="scen-cell">
-                  <div class="scen-label scen-label-opti">Optimiste</div>
+                  <div class="scen-label scen-label-opti">Favorable</div>
                   <div id="sim-rate-opti" class="sim-rate-label">10,0%</div>
                   <div id="sim-res-total-opti" class="scen-total" style="color:var(--gain)">—</div>
                   <div id="sim-res-interest-opti" class="scen-interest" style="color:var(--gain)">—</div>
@@ -537,18 +486,18 @@
           </div>
 
           <!-- Jauge visuelle (réaliste) -->
-          <div class="card">
+          <div class="card trajectory-composition">
             <div class="card-body" style="padding:16px 20px">
-              <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:10px">Composition — scénario réaliste</div>
-              <div style="height:12px;border-radius:6px;overflow:hidden;display:flex;margin-bottom:8px">
+              <div class="card-title">Ce qui construit le résultat</div>
+              <div class="trajectory-composition-bar">
                 <div id="sim-bar-initial" style="background:#0070f3;transition:width 0.4s ease;height:100%"></div>
                 <div id="sim-bar-monthly" style="background:#7c5cfc;transition:width 0.4s ease;height:100%"></div>
                 <div id="sim-bar-interest" style="background:var(--accent);transition:width 0.4s ease;height:100%;flex:1"></div>
               </div>
-              <div style="display:flex;gap:16px;flex-wrap:wrap">
-                <div class="flex-gap6"><div style="width:8px;height:8px;border-radius:2px;background:#0070f3;flex-shrink:0"></div><span style="font-size:0.68rem;color:var(--muted)">Patrimoine actuel · <span id="sim-legend-initial" style="color:var(--text)">—</span></span></div>
-                <div class="flex-gap6"><div style="width:8px;height:8px;border-radius:2px;background:#7c5cfc;flex-shrink:0"></div><span style="font-size:0.68rem;color:var(--muted)">Versements · <span id="sim-legend-monthly" style="color:var(--text)">—</span></span></div>
-                <div class="flex-gap6"><div style="width:8px;height:8px;border-radius:2px;background:var(--accent);flex-shrink:0"></div><span style="font-size:0.68rem;color:var(--muted)">Rendements · <span id="sim-legend-interest" style="color:var(--gain)">—</span></span></div>
+              <div class="trajectory-legend">
+                <div class="trajectory-legend-item">Patrimoine actuel<strong id="sim-legend-initial">—</strong></div>
+                <div class="trajectory-legend-item">Futurs versements<strong id="sim-legend-monthly">—</strong></div>
+                <div class="trajectory-legend-item">Rendements estimés<strong id="sim-legend-interest">—</strong></div>
               </div>
               <div class="sim-breakdown" id="sim-projected-breakdown" aria-label="Projection réaliste par catégorie"></div>
             </div>
@@ -558,18 +507,17 @@
       </div>
 
       <!-- Graphique courbes -->
-      <div class="card" id="sim-chart-card" style="margin-bottom:16px">
+      <div class="card trajectory-chart" id="sim-chart-card" style="margin-bottom:16px">
         <div class="card-header">
-          <div class="card-title">Évolution projetée</div>
+          <div>
+            <div class="card-title">La trajectoire dans le temps</div>
+            <div class="card-subtitle">Le scénario central reste mis en avant</div>
+          </div>
           <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-            <div style="display:flex;gap:12px;font-size:0.68rem;color:var(--muted)">
-              <span class="flex-gap5"><span style="width:16px;height:2px;background:#ff7070;display:inline-block;border-radius:1px"></span>Pessimiste</span>
-              <span class="flex-gap5"><span style="width:16px;height:2px;background:#00e5a0;display:inline-block;border-radius:1px"></span>Réaliste</span>
-              <span class="flex-gap5"><span style="width:16px;height:2px;background:#c27aff;display:inline-block;border-radius:1px"></span>Optimiste</span>
-            </div>
-            <div class="sim-view-btns" style="display:flex;gap:8px">
-              <button class="sim-view-btn active" id="simViewGraph" onclick="simSetView('graph',this)">Graphique</button>
-              <button class="sim-view-btn" id="simViewTable" onclick="simSetView('table',this)">Tableau</button>
+            <div class="trajectory-chart-legend">
+              <span><i style="background:#ff7189"></i>Prudent</span>
+              <span><i style="background:#55e6b1"></i>Central</span>
+              <span><i style="background:#65a8ff"></i>Favorable</span>
             </div>
           </div>
         </div>
@@ -583,37 +531,15 @@
               </div>
             </div>
           </div>
-          <!-- Switch scénario tableau — mobile uniquement -->
-          <div id="sim-table-scenario-switch" style="display:none;padding:8px 12px 0;gap:6px;flex-wrap:wrap">
-            <button class="sim-scen-btn" data-scen="pess" onclick="simSetTableScenario('pess',this)" style="flex:1;font-family:'Inter',sans-serif;font-size:0.7rem;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,112,112,0.35);background:rgba(255,112,112,0.08);color:#ff7070;cursor:pointer;transition:all 0.15s">Pessimiste</button>
-            <button class="sim-scen-btn active-scen" data-scen="real" onclick="simSetTableScenario('real',this)" style="flex:1;font-family:'Inter',sans-serif;font-size:0.7rem;padding:5px 8px;border-radius:6px;border:1px solid var(--accent);background:rgba(0,229,160,0.12);color:var(--accent);cursor:pointer;font-weight:600;transition:all 0.15s">Réaliste</button>
-            <button class="sim-scen-btn" data-scen="opti" onclick="simSetTableScenario('opti',this)" style="flex:1;font-family:'Inter',sans-serif;font-size:0.7rem;padding:5px 8px;border-radius:6px;border:1px solid rgba(194,122,255,0.35);background:rgba(194,122,255,0.08);color:#c27aff;cursor:pointer;transition:all 0.15s">Optimiste</button>
-          </div>
-          <div id="sim-table-wrap" style="display:none;overflow-x:auto;max-height:300px;overflow-y:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:0.75rem">
-              <thead style="position:sticky;top:0;background:var(--surface)">
-                <tr>
-                  <th class="sim-th sim-th-left">Année</th>
-                  <th class="sim-th sim-th-right">Investi</th>
-                  <th class="sim-th sim-th-right" style="color:#ff7070">Pessimiste</th>
-                  <th class="sim-th sim-th-right" style="color:var(--accent)">Réaliste</th>
-                  <th class="sim-th sim-th-right" style="color:#c27aff">Optimiste</th>
-                </tr>
-              </thead>
-              <tbody id="sim-table-body"></tbody>
-            </table>
-          </div>
         </div>
       </div>
 
-      </div><!-- end standardProjectionContent -->
-
       <!-- OBJECTIFS D'ÉPARGNE -->
-      <div id="projectionGoalsSection" style="margin-bottom:8px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <div>
-            <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:1rem;letter-spacing:-0.01em">Objectifs d'épargne</div>
-            <div style="font-size:0.72rem;color:var(--muted);margin-top:2px">Suivez votre progression vers vos cibles financières</div>
+      <div style="margin-bottom:8px">
+        <div class="objectives-heading">
+          <div class="objectives-copy">
+            <h2>Objectifs personnels</h2>
+            <p>Des projets choisis, séparés des anciens jalons automatiques.</p>
           </div>
           <button class="btn btn-sm btn-primary" onclick="openAddGoal()">+ Objectif</button>
         </div>
@@ -627,7 +553,6 @@
   </div><!-- end tab-simulator -->
 
 <script src="./assets/js/core.js"></script>
-<script src="./assets/js/private-plan-core.js"></script>
 <script src="./assets/js/app.js"></script>
 
 </div><!-- end .app -->
@@ -782,86 +707,7 @@
         </div>
       </div>
 
-<!-- MODAL PLAN PATRIMONIAL PRIVÉ -->
-<div class="modal-overlay" id="privatePlanModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="privatePlanModalTitle">
-  <form class="modal private-plan-modal" id="privatePlanForm">
-    <div class="private-plan-modal-header">
-      <div><h2 id="privatePlanModalTitle">Modifier ma situation</h2><p>Ces informations ne sont visibles que depuis votre compte.</p></div>
-      <span class="private-plan-lock">Privé à ce compte</span>
     </div>
-
-    <details class="private-plan-form-section" open>
-      <summary>Situation et foyer</summary>
-      <div class="private-plan-form-grid">
-        <label>Âge<input type="number" min="0" max="120" step="1" data-private-field="profile.age"></label>
-        <label>Revenus personnels bruts / an (€)<input type="number" min="0" step="100" data-private-field="profile.personalIncomeAnnual"></label>
-        <label>Revenus de la compagne / an (€)<input type="number" min="0" step="100" data-private-field="profile.partnerIncomeAnnual"></label>
-        <label>Prime annuelle de la compagne (€)<input type="number" min="0" step="100" data-private-field="profile.partnerBonusAnnual"></label>
-        <label>Logement actuel / mois (€)<input type="number" min="0" step="10" data-private-field="profile.currentHousingMonthly"></label>
-        <label>Liquidités de la compagne (€)<input type="number" min="0" step="100" data-private-field="household.partnerLiquid"></label>
-        <label>PEA de la compagne (€)<input type="number" min="0" step="100" data-private-field="household.partnerPea"></label>
-        <label>Réserve minimale du foyer (€)<input type="number" min="0" step="500" data-private-field="household.reserveMinimum"></label>
-      </div>
-    </details>
-
-    <details class="private-plan-form-section" open>
-      <summary>Versements programmés</summary>
-      <p class="form-hint">Chaque ligne possède un montant avant et après l’achat. Les soldes actuels restent repris automatiquement depuis Moumix.</p>
-      <div class="private-plan-flow-editor" id="privatePlanFlowEditor"></div>
-      <button type="button" class="btn btn-sm" id="privatePlanAddFlowBtn">+ Ajouter une ligne</button>
-    </details>
-
-    <details class="private-plan-form-section" open>
-      <summary>Projet maison</summary>
-      <div class="private-plan-form-grid">
-        <label>Prix du bien (€)<input type="number" min="0" step="1000" data-private-field="house.price"></label>
-        <label>Frais de notaire (€)<input type="number" min="0" step="100" data-private-field="house.notaryFees"></label>
-        <label>Garantie (€)<input type="number" min="0" step="100" data-private-field="house.guaranteeFees"></label>
-        <label>Courtage (€)<input type="number" min="0" step="100" data-private-field="house.brokerageFees"></label>
-        <label>Frais de dossier (€)<input type="number" min="0" step="100" data-private-field="house.applicationFees"></label>
-        <label>Apport visé (€)<input type="number" min="0" step="1000" data-private-field="house.targetDownPayment"></label>
-        <label>Objectif personnel d’apport (€)<input type="number" min="0" step="1000" data-private-field="house.personalTarget"></label>
-        <label>Apport personnel déjà constitué (€)<input type="number" min="0" step="100" data-private-field="house.personalFund"></label>
-        <label>Montant du prêt (€)<input type="number" min="0" step="1000" data-private-field="house.loanAmount"></label>
-        <label>Taux du prêt (%)<input type="number" min="0" max="100" step="0.01" data-private-field="house.annualRate"></label>
-        <label>Durée du prêt (années)<input type="number" min="1" max="60" step="1" data-private-field="house.durationYears"></label>
-        <label>Achat possible à partir de<input type="month" data-private-field="house.earliestPurchaseMonth"></label>
-        <label>Assurance emprunteur / mois (€)<input type="number" min="0" step="10" data-private-field="house.insuranceMonthly"></label>
-        <label>Taxe foncière moyenne / mois (€)<input type="number" min="0" step="10" data-private-field="house.propertyTaxMonthly"></label>
-        <label>Entretien provisionné / mois (€)<input type="number" min="0" step="10" data-private-field="house.maintenanceMonthly"></label>
-      </div>
-      <p class="form-hint">L’apport personnel déjà constitué sert au suivi de votre objectif individuel. Il est considéré comme déjà inclus dans vos liquidités Moumix et n’est jamais ajouté une seconde fois au patrimoine.</p>
-    </details>
-
-    <details class="private-plan-form-section">
-      <summary>Hypothèses et horizon</summary>
-      <div class="private-plan-form-grid">
-        <label>Horizon (années)<input type="number" min="1" max="60" step="1" data-private-field="projection.horizonYears"></label>
-        <label>Inflation annuelle (%)<input type="number" min="0" max="20" step="0.1" data-private-field="projection.inflationRate"></label>
-      </div>
-      <div class="private-plan-assumptions" id="privatePlanAssumptionEditor"></div>
-      <label class="private-plan-checkbox"><input type="checkbox" data-private-field="household.inheritanceEnabled"> Inclure un héritage hypothétique dans les calculs</label>
-      <div class="private-plan-form-grid">
-        <label>Montant hypothétique (€)<input type="number" min="0" step="1000" data-private-field="household.inheritanceAmount"></label>
-        <label>Dans combien d’années ?<input type="number" min="0" max="80" step="1" data-private-field="household.inheritanceAfterYears"></label>
-      </div>
-      <p class="form-hint">Désactivé par défaut : l’héritage ne compte alors jamais dans les résultats.</p>
-    </details>
-
-    <details class="private-plan-form-section">
-      <summary>Point zéro et suivi</summary>
-      <label class="private-plan-wide-label">Date de référence<input type="date" id="privatePlanBaselineDateInput"></label>
-      <label class="private-plan-wide-label">Situation de référence<textarea id="privatePlanBaselineNoteInput" rows="12"></textarea></label>
-      <label class="private-plan-wide-label">Note pour cette modification<textarea id="privatePlanChangeNoteInput" rows="3" placeholder="Ex. : PEA mis à jour, nouvel objectif d’apport…"></textarea></label>
-    </details>
-
-    <div class="private-plan-form-error" id="privatePlanFormError" role="alert"></div>
-    <div class="form-actions private-plan-form-actions">
-      <button type="button" class="btn" id="privatePlanCancelBtn">Annuler</button>
-      <button type="submit" class="btn btn-primary" id="privatePlanSaveBtn">Enregistrer les modifications</button>
-    </div>
-  </form>
-</div>
 
 <!-- MODAL IMPORT HISTORIQUE -->
 <div class="modal-overlay" id="historyImportModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="historyImportTitle" onclick="if(event.target===this)closeHistoryImport()">
@@ -915,19 +761,6 @@
   </div>
 </div>
 
-<script src="./assets/js/private-plan.js"></script>
 <script src="./assets/js/history-import.js"></script>
-
-<!-- CHIEN MASCOTTE -->
-<div id="dogBubble" class="dog-welcome-bubble hidden"></div>
-<div id="wafBubble" style="position:fixed;bottom:110px;right:24px;z-index:301;pointer-events:none"></div>
-<div class="dog-widget hidden" id="dogWidget" onclick="dogClick()">
-  <div class="dog-svg-wrap" id="dogSvgWrap">
-    <img src="https://i.ibb.co/zWFYbp6w/chien-shiba-qui-court-heureux-isole-fond-transparent-png-699917-6816-removebg-preview.png"
-         width="80" height="80"
-         style="object-fit:contain;display:block;filter:drop-shadow(0 4px 16px rgba(0,0,0,0.35))"
-         alt="Shiba">
-  </div>
-</div>
 </body>
 </html>

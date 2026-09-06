@@ -1,11 +1,13 @@
 <div align="center">
 
-# Moumix Finance
-### Mon patrimoine, simplement
+<img src="./assets/brand/moumix-mark.svg" width="88" height="88" alt="Logo Moumix">
 
-<p><em>Voir où j’en suis. Comprendre ce qui évolue. Construire la suite.</em></p>
+# Moumix
+### Le patrimoine, au même endroit
 
-Un tableau de bord privé pour suivre ses comptes, ses investissements et ses projets à long terme.
+<p><em>Comprendre ce que j’ai. Voir où il se trouve. Suivre le chemin parcouru.</em></p>
+
+Un tableau de bord privé et calme pour suivre ses comptes, ses actifs et ses projets dans le temps.
 
 ![HTML5](https://img.shields.io/badge/HTML5-static-E34F26?style=flat-square&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-native-1572B6?style=flat-square&logo=css3&logoColor=white)
@@ -16,255 +18,174 @@ Un tableau de bord privé pour suivre ses comptes, ses investissements et ses pr
 
 </div>
 
-Moumix Finance est une application personnelle conçue pour rendre le suivi patrimonial plus lisible et plus concret. Elle rassemble au même endroit les comptes, les positions, les liquidités fixes, l’historique du patrimoine et les projections futures.
-
-L’objectif n’est pas de multiplier les graphiques, mais de garder une vision claire de ce qui existe aujourd’hui, de ce qui évolue et de ce qui pourrait être construit demain.
+Moumix rassemble ce qui est souvent éparpillé entre plusieurs banques, courtiers et applications. L’idée n’est pas de transformer l’épargne en salle de marché : l’application aide simplement à lire son patrimoine, à comprendre sa répartition et à observer son évolution.
 
 ---
 
 ## Le concept
 
-Moumix Finance relie trois temporalités qui sont souvent séparées :
+Moumix relie trois questions très concrètes :
 
-- **le présent** — la valeur actuelle des comptes et des positions ;
-- **le passé** — l’évolution du patrimoine et l’historique des opérations ;
-- **le futur** — des projections fondées sur les actifs réellement renseignés.
+- **Combien ai-je aujourd’hui ?**
+- **Dans quelles poches se trouve mon argent ?**
+- **Que pourrait-il devenir si je garde un certain rythme ?**
 
-Chaque donnée reste à sa place : les cours servent à suivre la valeur du portefeuille, les transactions gardent la trace des mouvements et les hypothèses de projection restent modifiables et clairement présentées comme une simulation.
+Les cours de marché ne sont qu’un moyen de valoriser les positions. Ils ne prennent jamais le dessus sur l’essentiel : les comptes, les actifs, les plus-values, les mouvements et la progression globale.
 
 ## Les grands principes
 
-- **Une vision d’ensemble** — comptes, investissements et patrimoine sont réunis dans une même lecture.
-- **Des données compréhensibles** — valeur, PRU, plus-value, allocation et évolution sont affichés sans multiplier les écrans.
-- **Des projections ancrées dans le réel** — le capital de départ est calculé à partir des comptes et positions existants.
-- **Une expérience personnelle** — l’application est privée, installable et pensée pour rester agréable sur ordinateur comme sur mobile.
-- **Une base préservée** — les actions importantes sont enregistrées de façon ciblée et les données existantes ne sont pas réécrites globalement.
+- **Une lecture patrimoniale** — pas de fil d’actualité, de bandeau boursier ou d’indicateur réservé aux traders.
+- **Une information à la fois** — les vues évitent d’empiler plusieurs représentations concurrentes.
+- **Des données personnelles séparées** — chaque compte Supabase ne voit que ses propres lignes grâce à l’authentification et aux règles RLS.
+- **Une trajectoire explicite** — toute estimation part du portefeuille renseigné et affiche clairement ses hypothèses.
+- **Une base fiable** — écritures ciblées, cotations limitées et snapshots refusés lorsqu’ils seraient incomplets.
 
-## Les grands espaces
+## Les trois espaces
 
-### Vue d’ensemble
+### Synthèse
 
-Le point de départ de l’application : patrimoine total, capital investi, plus-values, allocation, évolution historique et répartition par compte.
+La page d’accueil répond immédiatement à l’essentiel :
 
-Les cours disponibles sont actualisés depuis Yahoo Finance. Lorsqu’un cours manque, la dernière valeur connue est conservée et l’interface l’indique au lieu de présenter une précision artificielle.
+- patrimoine actuellement suivi ;
+- capital investi et plus-value latente ;
+- variation sur la période choisie ;
+- courbe de progression ;
+- allocation par poche, compte ou actif ;
+- aperçu des établissements et du poids de chaque compte.
 
-### Comptes
+L’ancien bloc de jalons automatiques a été retiré. Les filtres permettent toujours d’isoler un ou plusieurs types de comptes sans modifier les données enregistrées.
 
-Un espace pour organiser les différents supports et leurs positions : PEA, CTO, PEE, PER, assurance-vie, crypto, livret, immobilier ou autre.
+### Portefeuille
 
-Chaque position peut afficher son ticker, sa quantité, son PRU, son cours actuel, sa valeur et sa performance. Les achats, ventes et modifications sont conservés dans un historique de transactions.
+Le portefeuille conserve toute la gestion opérationnelle :
 
-Les prélèvements récurrents peuvent également être regroupés par catégorie et suivis au mois ou à l’année.
+- création de comptes par établissement et type d’enveloppe ;
+- comptes de marché et soldes fixes ;
+- recherche d’un titre par nom ou ticker ;
+- achat, vente et modification d’une position ;
+- quantité, PRU, cours actuel, valeur et plus-value ;
+- historique des mouvements ;
+- prélèvements récurrents et équivalents mensuel/annuel.
 
-### Projections
+L’actualisation conserve la dernière cotation connue lorsqu’une nouvelle valeur manque. Une position supprimée depuis un autre appareil n’est jamais recréée pendant une synchronisation.
 
-Les projections partent directement du patrimoine renseigné dans Moumix Finance. Le capital initial, les catégories d’actifs et l’allocation actuelle sont repris automatiquement.
+### Trajectoire
 
-Un dossier patrimonial privé peut en plus être activé pour un seul utilisateur. Il relie alors le portefeuille réel à la situation du foyer, au plan mensuel et au projet de résidence principale :
+La trajectoire remplace l’ancien simulateur dense. Elle utilise automatiquement le patrimoine déjà présent, puis demande seulement :
 
-- un horizon de projection ;
-- des versements distincts avant et après l’achat ;
-- un objectif d’apport et une réserve de sécurité ;
-- le financement, la mensualité et les coûts futurs de la maison ;
-- des hypothèses de rendement par catégorie ;
-- une lecture du résultat central en euros nominaux et en pouvoir d’achat actuel ;
-- trois scénarios — prudent, central et favorable ;
-- un point zéro et un historique des changements de situation.
+- l’effort d’épargne mensuel ;
+- l’horizon ;
+- la destination des futurs versements.
 
-Le dossier n’est chargé que si Supabase autorise la ligne de l’utilisateur connecté. Un autre compte continue donc à voir la projection classique. Les hypothèses restent modifiables et la projection est explicitement présentée comme une simulation, jamais comme une prédiction ou un conseil financier.
+Trois résultats restent visibles : prudent, central et favorable. Les hypothèses annuelles par poche sont disponibles dans un volet replié pour ceux qui souhaitent les ajuster. Les objectifs personnels restent séparés des estimations.
 
-### Historique et objectifs
+Cette partie n’écrit aucune hypothèse dans Supabase. Elle constitue une simulation indicative, jamais une promesse de rendement ni un conseil financier.
 
-Les snapshots quotidiens dessinent l’évolution du patrimoine dans le temps. Les objectifs d’épargne permettent de suivre des montants ciblés séparément, avec une progression simple à lire.
+## Identité et expérience
 
----
+La version 2 introduit une identité complète autour d’un symbole en forme de **M** et de poches imbriquées. L’interface utilise des surfaces bleu-encre, un vert plus doux et quelques accents bleus afin de rester lisible sans ressembler à un terminal boursier.
 
-## Ce que l’application permet
+Sur mobile :
 
-- suivre plusieurs comptes et types de supports ;
-- actualiser les cours et convertir les positions étrangères en euros ;
-- visualiser le patrimoine, l’allocation et les performances ;
-- acheter, vendre ou modifier une position avec recalcul du PRU ;
-- saisir le véritable prix d’exécution d’une vente ;
-- conserver un historique des transactions ;
-- enregistrer des prélèvements récurrents ;
-- importer un historique du patrimoine depuis un fichier CSV ;
-- exporter toutes les données locales au format JSON ;
-- créer des objectifs d’épargne ;
-- installer l’application comme une PWA sur iPhone, iPad ou Android ;
-- consulter l’interface avec une navigation adaptée au mobile.
+- le logo et le taux USD/EUR restent accessibles sans encombrer l’en-tête ;
+- la navigation est compacte et respecte les zones sûres de l’iPhone ;
+- les actions d’ajout et le compte personnel sont regroupés derrière le bouton à trois points ;
+- le pincement à deux doigts reste disponible ;
+- les champs ne déclenchent pas de zoom automatique au focus.
+
+## Ce qui a volontairement disparu
+
+- le Shiba et ses messages ;
+- le bandeau défilant d’indices, crypto et métaux ;
+- les jalons patrimoniaux automatiques ;
+- la présentation très dense de l’ancien simulateur ;
+- tout parcours d’inscription publique.
+
+Le taux **USD/EUR** reste présent car il est utile à la compréhension des positions étrangères.
 
 ## Version en cours
 
-**1.2.0 — septembre 2026**
+**2.0.0 — septembre 2026**
 
-La version actuelle ajoute un plan patrimonial personnel sans modifier l’expérience des autres utilisateurs.
+Cette version reconstruit l’expérience sans migrer ni réécrire la base existante :
 
-- dossier patrimonial facultatif, activé utilisateur par utilisateur ;
-- patrimoine personnel automatiquement synchronisé avec les comptes Moumix ;
-- données du foyer et projet immobilier modifiables depuis l’application ;
-- versements configurables avant et après l’achat ;
-- estimation de la date d’apport, de la mensualité et du patrimoine à long terme ;
-- point zéro conservé avec un journal des modifications ;
-- isolation par ligne Supabase et absence de droits de création ou suppression côté navigateur ;
-- projections basées sur les comptes et positions réellement renseignés ;
-- menu mobile regroupant les actions et les informations du compte ;
-- navigation mobile fixe et zones sûres iOS mieux gérées ;
-- actualisation des cours plus résistante aux positions supprimées ou modifiées pendant le chargement ;
-- sauvegardes ciblées, contrôles d’erreur et restaurations compensatoires en cas d’échec ;
-- reprise automatique limitée lors d’un refus temporaire de jeton Supabase ;
-- snapshots calculés selon le fuseau `Europe/Paris`, avec conversion correcte des devises ;
-- manifest, icônes et service worker préparés pour l’installation en web app ;
-- connexion privée limitée aux comptes déjà créés, sans formulaire d’inscription ;
-- cotations dédupliquées, mises en cache et limitées en parallèle ;
-- mise à jour de la PWA proposée avant l’activation d’une nouvelle version ;
-- structure HTML, CSS et JavaScript séparée sans modification du design.
+- nouvelle architecture visuelle et nouveau logo ;
+- navigation renommée Synthèse, Portefeuille et Trajectoire ;
+- allocation regroupable par poche, compte ou actif ;
+- aperçu utile des comptes à la place des jalons ;
+- trajectoire simplifiée et toujours fondée sur le portefeuille réel ;
+- nouvelles icônes PWA ;
+- mascotte et cotations défilantes retirées du HTML et du JavaScript ;
+- modèle Supabase et historique existants conservés.
 
 ## Architecture
 
 | Élément | Rôle |
 | --- | --- |
-| `index.html` | Structure HTML de l’interface |
-| `assets/css/app.css` | Styles de l’application |
+| `index.html` | Structure et contenu de l’interface |
+| `assets/css/app.css` | Composants fonctionnels historiques |
+| `assets/css/v2.css` | Identité et hiérarchie de la version 2 |
+| `assets/brand/moumix-mark.svg` | Logo vectoriel |
 | `assets/js/core.js` | Fonctions techniques pures et testables |
-| `assets/js/app.js` | Authentification, données et interface principale |
-| `assets/js/private-plan-core.js` | Calculs purs du plan maison et long terme |
-| `assets/js/private-plan.js` | Interface et persistance du dossier patrimonial privé |
+| `assets/js/app.js` | Authentification, données et interface |
 | `assets/js/history-import.js` | Import de l’historique patrimonial |
 | Supabase | Authentification, PostgreSQL et règles RLS |
-| Yahoo Finance | Cours des actifs et indices |
-| Cloudflare Worker | Proxy CORS pour les requêtes Yahoo Finance |
+| Yahoo Finance | Cotations nécessaires aux positions et au taux USD/EUR |
+| Cloudflare Worker | Proxy CORS et solution de repli pour les cotations |
 | GitHub Actions | Snapshot quotidien du patrimoine |
-| Service worker | Mise en cache du shell de l’application |
-| GitHub Pages | Hébergement statique possible |
+| Service worker | Cache du shell et mise à jour contrôlée de la PWA |
 
-Le frontend reste en JavaScript vanilla, sans compilation. Les fichiers sont séparés par responsabilité tout en pouvant être déposés directement sur GitHub Pages.
+Le frontend reste en JavaScript vanilla, sans compilation. Il peut être déposé directement sur GitHub Pages.
 
-## Structure du projet
+## Déploiement d’une mise à jour existante
 
-```text
-Moumix-Finance/
-├── index.html
-├── version.json
-├── manifest.json
-├── sw.js
-├── assets/
-│   ├── css/
-│   │   └── app.css
-│   └── js/
-│       ├── core.js
-│       ├── private-plan-core.js
-│       ├── app.js
-│       ├── private-plan.js
-│       └── history-import.js
-├── apple-touch-icon.png
-├── icon-192.png
-├── icon-512.png
-├── scripts/
-│   └── daily-snapshot.js
-├── .github/workflows/
-│   └── daily-snapshot.yml
-├── tests/
-│   ├── core.test.cjs
-│   ├── private-plan.test.cjs
-│   └── project.test.cjs
-├── supabase_shema.sql
-├── CHANGELOG_MODIFS.md
-├── package.json
-├── package-lock.json
-└── robots.txt
-```
+Pour une base Moumix déjà utilisée :
 
-## Déploiement
+1. remplacer les fichiers du projet sur GitHub ;
+2. attendre la fin du déploiement GitHub Pages ;
+3. fermer puis rouvrir la web app ;
+4. accepter la proposition de mise à jour si elle apparaît.
 
-### Base Supabase
+**Aucune migration SQL n’est nécessaire pour la version 2.** Ne relancez pas `supabase_shema.sql` sur une base déjà en service. Les comptes, positions, transactions, prélèvements, objectifs et snapshots existants sont relus tels quels.
 
-Pour une nouvelle installation :
+## Nouvelle installation
 
-1. créer un projet sur [Supabase](https://supabase.com) ;
-2. ouvrir le SQL Editor ;
-3. exécuter `supabase_shema.sql` une seule fois ;
-4. vérifier l’authentification par email et mot de passe ;
-5. contrôler les politiques RLS des sept tables.
+1. créer un projet Supabase ;
+2. exécuter `supabase_shema.sql` une seule fois ;
+3. activer l’authentification par email et mot de passe ;
+4. créer manuellement les utilisateurs autorisés ;
+5. laisser l’inscription publique désactivée ;
+6. renseigner dans `assets/js/app.js` l’URL Supabase, la clé publique `anon` et le proxy Yahoo Finance.
 
-Pour une base Moumix déjà utilisée, ne pas relancer le schéma complet. L’activation du dossier patrimonial utilise uniquement le script SQL privé fourni séparément : il ajoute une table indépendante et la ligne du seul utilisateur concerné, sans modifier les comptes, positions, transactions, objectifs ou snapshots existants.
+La clé `service_role` ne doit jamais être placée dans le frontend.
 
-Ce fichier d’activation contient la situation personnelle et l’identifiant du compte : **ne jamais le déposer sur GitHub**. Il est idempotent et peut être exécuté une seconde fois sans écraser les changements déjà enregistrés dans l’application.
+## Snapshot automatique
 
-### Configuration du frontend
+Le workflow GitHub Actions récupère les positions des utilisateurs autorisés, mutualise les symboles communs et limite le nombre de requêtes simultanées. Les réponses non JSON, les limitations temporaires et les délais d’attente sont retentés avec temporisation.
 
-Dans `assets/js/app.js`, renseigner l’URL et la clé publique `anon` du projet :
+Un snapshot n’est enregistré que si toutes les cotations et conversions requises sont disponibles. Cela évite qu’une panne de fournisseur apparaisse comme une chute artificielle du patrimoine.
 
-```js
-const SUPA_URL = 'https://VOTRE_PROJET.supabase.co';
-const SUPA_KEY = 'VOTRE_CLE_ANON';
-const YF_WORKER = 'https://yf-proxy.VOTRE_COMPTE.workers.dev';
-```
-
-La `Service Role Key` ne doit jamais être placée dans `index.html`. Elle est réservée à GitHub Actions pour le snapshot quotidien.
-
-### Snapshot GitHub Actions
-
-Le workflow se déclenche à `22 h 15` et `23 h 15` UTC afin de couvrir les changements d’heure. Le script vérifie l’heure locale `Europe/Paris` et une seule exécution écrit le point correspondant à minuit.
-
-Ajouter dans **Settings → Secrets and variables → Actions** :
+Secrets GitHub nécessaires :
 
 | Secret | Contenu |
 | --- | --- |
 | `SUPA_URL` | URL du projet Supabase |
-| `SUPA_SERVICE_KEY` | Service Role Key, uniquement pour GitHub Actions |
-| `SNAPSHOT_USER_IDS` | Identifiants des utilisateurs séparés par des virgules |
-
-Le snapshot récupère les cours, convertit les devises en euros, vérifie que toutes les données nécessaires sont disponibles, puis effectue un upsert sur la date concernée. Il ne réécrit pas les anciens points d’historique.
-
-Les cotations communes aux deux utilisateurs sont réutilisées pendant une exécution. Trois requêtes maximum sont lancées simultanément et une réponse invalide ou une limitation temporaire est retentée avec un délai progressif. Le script alterne également le proxy Cloudflare et Yahoo en direct afin d'éviter qu'un seul intermédiaire bloque toute l'exécution. Si une donnée nécessaire manque encore, aucun snapshot partiel n’est enregistré.
-
-Le workflow vérifie également la syntaxe et les tests avant de lancer le snapshot :
-
-```bash
-npm run check
-npm test
-```
-
-### Hébergement
-
-Déployer le dossier sur un hébergement statique HTTPS comme GitHub Pages, Netlify ou Cloudflare Pages.
-
-Sur iPhone ou iPad : ouvrir le site dans Safari → **Partager** → **Sur l’écran d’accueil**.
+| `SUPA_SERVICE_KEY` | Service Role Key réservée à GitHub Actions |
+| `SNAPSHOT_USER_IDS` | Identifiants utilisateurs séparés par des virgules |
 
 ## Données et confidentialité
 
-Moumix Finance est conçu pour les deux comptes déjà autorisés. L’inscription publique est absente de l’interface et désactivée dans Supabase. Les données sont séparées par utilisateur via Supabase Auth et les politiques RLS. L’application ne contient aucune clé de service côté frontend.
+L’inscription est absente de l’interface. Les deux comptes autorisés restent indépendants : l’identifiant de l’utilisateur accompagne chaque ligne et les politiques RLS empêchent la lecture des données d’un autre compte.
 
-Les sauvegardes JSON permettent de conserver une copie locale de l’ensemble des comptes, positions, transactions, prélèvements, historique, objectifs et, lorsqu’il est autorisé, du dossier patrimonial privé.
+L’export JSON permet de conserver une copie locale des comptes, positions, transactions, prélèvements, historique et objectifs.
 
-Le dossier patrimonial privé bénéficie d’une protection supplémentaire :
+## Limites
 
-- une seule ligne est créée, directement pour l’identifiant autorisé ;
-- RLS ajoute `auth.uid() = user_id` à chaque lecture et modification ;
-- le rôle anonyme n’a aucun droit sur la table ;
-- le navigateur peut lire et modifier sa propre ligne, mais ne peut ni en créer ni en supprimer ;
-- si l’utilisateur connecté n’a aucune ligne autorisée, l’interface privée n’est pas affichée.
-
-### Faire évoluer sa situation
-
-Dans **Projections → Modifier ma situation**, il est possible de :
-
-- modifier les revenus, les montants de la compagne et la réserve du foyer ;
-- ajouter, retirer ou renommer une destination de versement ;
-- choisir son montant avant et après l’achat ainsi que ses dates de début et de fin ;
-- mettre à jour le prix du bien, les frais, l’apport, le prêt, le taux et les coûts futurs ;
-- ajuster l’horizon, l’inflation et les hypothèses de rendement ;
-- conserver le texte du point zéro et ajouter une note datée à chaque évolution.
-
-Les valeurs des comptes et positions du propriétaire ne sont pas ressaisies : elles se mettent à jour automatiquement depuis Moumix. Les actifs de la compagne restent saisis manuellement, car la règle de confidentialité empêche volontairement un compte de lire les données de l’autre.
-
-## Limite actuelle
-
-Moumix Finance suit la valeur des actifs, mais ne gère pas encore automatiquement un solde espèces après chaque achat ou vente. Ajouter ce comportement demanderait une évolution explicite du modèle de données ; il n’est donc pas activé dans la version actuelle.
-
-Les cours Yahoo Finance peuvent être différés selon le marché. Les projections sont indicatives et ne constituent pas une recommandation financière.
+- Moumix valorise les actifs mais ne tient pas automatiquement un solde espèces après chaque achat ou vente.
+- Les cotations peuvent être différées selon les marchés et le fournisseur.
+- La trajectoire est une estimation sensible aux hypothèses choisies.
+- L’application n’agrège pas automatiquement les comptes bancaires : les données restent saisies et contrôlées par l’utilisateur.
 
 ## La direction
 
-Moumix Finance reste un projet personnel, construit au fil des usages. La priorité n’est pas d’ajouter toujours plus d’indicateurs, mais de rendre chaque information plus fiable, plus lisible et plus utile pour prendre du recul sur son patrimoine.
+Moumix reste un projet personnel. Chaque évolution doit rendre le patrimoine plus facile à comprendre avant d’ajouter une nouvelle fonction : moins de bruit, une hiérarchie plus juste et des données auxquelles on peut faire confiance.

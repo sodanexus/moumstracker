@@ -114,19 +114,6 @@ CREATE TABLE IF NOT EXISTS public.goals (
 CREATE INDEX IF NOT EXISTS idx_goals_user_id
   ON public.goals(user_id);
 
--- ── Plan patrimonial privé (activation explicite, utilisateur par utilisateur) ──
-CREATE TABLE IF NOT EXISTS public.private_projection_plan (
-  user_id        UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  baseline_date  DATE,
-  plan           JSONB NOT NULL DEFAULT '{}'::jsonb,
-  baseline_note  TEXT NOT NULL DEFAULT '',
-  change_log     JSONB NOT NULL DEFAULT '[]'::jsonb,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CHECK (jsonb_typeof(plan) = 'object'),
-  CHECK (jsonb_typeof(change_log) = 'array')
-);
-
 -- ── updated_at ───────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER
@@ -158,11 +145,6 @@ CREATE TRIGGER trg_goals_updated_at
   BEFORE UPDATE ON public.goals
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
-DROP TRIGGER IF EXISTS trg_private_projection_plan_updated_at ON public.private_projection_plan;
-CREATE TRIGGER trg_private_projection_plan_updated_at
-  BEFORE UPDATE ON public.private_projection_plan
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 -- ── RLS : chaque utilisateur ne voit que ses lignes ─────────────────────────
 ALTER TABLE public.accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.positions ENABLE ROW LEVEL SECURITY;
@@ -170,7 +152,6 @@ ALTER TABLE public.prelevements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.patrimoine_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.goals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.private_projection_plan ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS accounts_user_isolation ON public.accounts;
 CREATE POLICY accounts_user_isolation ON public.accounts
@@ -208,19 +189,6 @@ CREATE POLICY goals_user_isolation ON public.goals
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
--- Aucun INSERT/DELETE depuis l'application : seul l'administrateur active un
--- dossier. Un utilisateur activé peut uniquement lire et modifier sa ligne.
-DROP POLICY IF EXISTS private_projection_plan_select_own ON public.private_projection_plan;
-CREATE POLICY private_projection_plan_select_own ON public.private_projection_plan
-  FOR SELECT TO authenticated
-  USING ((SELECT auth.uid()) = user_id);
-
-DROP POLICY IF EXISTS private_projection_plan_update_own ON public.private_projection_plan;
-CREATE POLICY private_projection_plan_update_own ON public.private_projection_plan
-  FOR UPDATE TO authenticated
-  USING ((SELECT auth.uid()) = user_id)
-  WITH CHECK ((SELECT auth.uid()) = user_id);
-
 GRANT USAGE ON SCHEMA public TO authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON
   public.accounts,
@@ -230,7 +198,3 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   public.patrimoine_history,
   public.goals
 TO authenticated, service_role;
-
-REVOKE ALL ON public.private_projection_plan FROM anon, authenticated;
-GRANT SELECT, UPDATE ON public.private_projection_plan TO authenticated;
-GRANT ALL ON public.private_projection_plan TO service_role;
