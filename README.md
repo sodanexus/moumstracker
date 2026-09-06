@@ -58,14 +58,20 @@ Les prélèvements récurrents peuvent également être regroupés par catégori
 
 ### Projections
 
-Les projections partent directement du patrimoine renseigné dans Moumix Finance. Le capital initial, les catégories d’actifs et l’allocation actuelle sont repris automatiquement, puis complétés par :
+Les projections partent directement du patrimoine renseigné dans Moumix Finance. Le capital initial, les catégories d’actifs et l’allocation actuelle sont repris automatiquement.
+
+Un dossier patrimonial privé peut en plus être activé pour un seul utilisateur. Il relie alors le portefeuille réel à la situation du foyer, au plan mensuel et au projet de résidence principale :
 
 - un horizon de projection ;
-- des versements mensuels ;
+- des versements distincts avant et après l’achat ;
+- un objectif d’apport et une réserve de sécurité ;
+- le financement, la mensualité et les coûts futurs de la maison ;
 - des hypothèses de rendement par catégorie ;
-- trois scénarios — pessimiste, réaliste et optimiste.
+- une lecture du résultat central en euros nominaux et en pouvoir d’achat actuel ;
+- trois scénarios — prudent, central et favorable ;
+- un point zéro et un historique des changements de situation.
 
-Les hypothèses restent modifiables et la projection est explicitement présentée comme une simulation, jamais comme une prédiction ou un conseil financier.
+Le dossier n’est chargé que si Supabase autorise la ligne de l’utilisateur connecté. Un autre compte continue donc à voir la projection classique. Les hypothèses restent modifiables et la projection est explicitement présentée comme une simulation, jamais comme une prédiction ou un conseil financier.
 
 ### Historique et objectifs
 
@@ -90,10 +96,17 @@ Les snapshots quotidiens dessinent l’évolution du patrimoine dans le temps. L
 
 ## Version en cours
 
-**1.1.0 — septembre 2026**
+**1.2.0 — septembre 2026**
 
-La version actuelle poursuit une même direction : rendre le suivi plus fiable sans alourdir l’interface.
+La version actuelle ajoute un plan patrimonial personnel sans modifier l’expérience des autres utilisateurs.
 
+- dossier patrimonial facultatif, activé utilisateur par utilisateur ;
+- patrimoine personnel automatiquement synchronisé avec les comptes Moumix ;
+- données du foyer et projet immobilier modifiables depuis l’application ;
+- versements configurables avant et après l’achat ;
+- estimation de la date d’apport, de la mensualité et du patrimoine à long terme ;
+- point zéro conservé avec un journal des modifications ;
+- isolation par ligne Supabase et absence de droits de création ou suppression côté navigateur ;
 - projections basées sur les comptes et positions réellement renseignés ;
 - menu mobile regroupant les actions et les informations du compte ;
 - navigation mobile fixe et zones sûres iOS mieux gérées ;
@@ -115,6 +128,8 @@ La version actuelle poursuit une même direction : rendre le suivi plus fiable s
 | `assets/css/app.css` | Styles de l’application |
 | `assets/js/core.js` | Fonctions techniques pures et testables |
 | `assets/js/app.js` | Authentification, données et interface principale |
+| `assets/js/private-plan-core.js` | Calculs purs du plan maison et long terme |
+| `assets/js/private-plan.js` | Interface et persistance du dossier patrimonial privé |
 | `assets/js/history-import.js` | Import de l’historique patrimonial |
 | Supabase | Authentification, PostgreSQL et règles RLS |
 | Yahoo Finance | Cours des actifs et indices |
@@ -138,7 +153,9 @@ Moumix-Finance/
 │   │   └── app.css
 │   └── js/
 │       ├── core.js
+│       ├── private-plan-core.js
 │       ├── app.js
+│       ├── private-plan.js
 │       └── history-import.js
 ├── apple-touch-icon.png
 ├── icon-192.png
@@ -149,6 +166,7 @@ Moumix-Finance/
 │   └── daily-snapshot.yml
 ├── tests/
 │   ├── core.test.cjs
+│   ├── private-plan.test.cjs
 │   └── project.test.cjs
 ├── supabase_shema.sql
 ├── CHANGELOG_MODIFS.md
@@ -167,9 +185,11 @@ Pour une nouvelle installation :
 2. ouvrir le SQL Editor ;
 3. exécuter `supabase_shema.sql` une seule fois ;
 4. vérifier l’authentification par email et mot de passe ;
-5. contrôler les politiques RLS des six tables.
+5. contrôler les politiques RLS des sept tables.
 
-Pour une base Moumix déjà utilisée, **ne rien exécuter** : la mise à jour de l’application ne nécessite aucune migration et ne supprime ni ne réécrit les données existantes.
+Pour une base Moumix déjà utilisée, ne pas relancer le schéma complet. L’activation du dossier patrimonial utilise uniquement le script SQL privé fourni séparément : il ajoute une table indépendante et la ligne du seul utilisateur concerné, sans modifier les comptes, positions, transactions, objectifs ou snapshots existants.
+
+Ce fichier d’activation contient la situation personnelle et l’identifiant du compte : **ne jamais le déposer sur GitHub**. Il est idempotent et peut être exécuté une seconde fois sans écraser les changements déjà enregistrés dans l’application.
 
 ### Configuration du frontend
 
@@ -216,7 +236,28 @@ Sur iPhone ou iPad : ouvrir le site dans Safari → **Partager** → **Sur l’�
 
 Moumix Finance est conçu pour les deux comptes déjà autorisés. L’inscription publique est absente de l’interface et désactivée dans Supabase. Les données sont séparées par utilisateur via Supabase Auth et les politiques RLS. L’application ne contient aucune clé de service côté frontend.
 
-Les sauvegardes JSON permettent de conserver une copie locale de l’ensemble des comptes, positions, transactions, prélèvements, historique et objectifs.
+Les sauvegardes JSON permettent de conserver une copie locale de l’ensemble des comptes, positions, transactions, prélèvements, historique, objectifs et, lorsqu’il est autorisé, du dossier patrimonial privé.
+
+Le dossier patrimonial privé bénéficie d’une protection supplémentaire :
+
+- une seule ligne est créée, directement pour l’identifiant autorisé ;
+- RLS ajoute `auth.uid() = user_id` à chaque lecture et modification ;
+- le rôle anonyme n’a aucun droit sur la table ;
+- le navigateur peut lire et modifier sa propre ligne, mais ne peut ni en créer ni en supprimer ;
+- si l’utilisateur connecté n’a aucune ligne autorisée, l’interface privée n’est pas affichée.
+
+### Faire évoluer sa situation
+
+Dans **Projections → Modifier ma situation**, il est possible de :
+
+- modifier les revenus, les montants de la compagne et la réserve du foyer ;
+- ajouter, retirer ou renommer une destination de versement ;
+- choisir son montant avant et après l’achat ainsi que ses dates de début et de fin ;
+- mettre à jour le prix du bien, les frais, l’apport, le prêt, le taux et les coûts futurs ;
+- ajuster l’horizon, l’inflation et les hypothèses de rendement ;
+- conserver le texte du point zéro et ajouter une note datée à chaque évolution.
+
+Les valeurs des comptes et positions du propriétaire ne sont pas ressaisies : elles se mettent à jour automatiquement depuis Moumix. Les actifs de la compagne restent saisis manuellement, car la règle de confidentialité empêche volontairement un compte de lire les données de l’autre.
 
 ## Limite actuelle
 

@@ -1,4 +1,22 @@
-# Moumix Finance 1.1.0 — mise à jour technique ciblée
+# Moumix Finance — historique des modifications
+
+## 1.2.0 — plan patrimonial privé
+
+- Dossier patrimonial activable pour un seul utilisateur sans changer la projection de l’autre compte
+- Valeurs personnelles de départ synchronisées automatiquement avec les comptes et positions Moumix
+- Situation du foyer, revenus, réserve et patrimoine de la compagne modifiables
+- Plan mensuel libre : ajout, suppression, dates et montants distincts avant/après achat
+- Projet immobilier complet : prix, frais, apport, prêt, taux, durée, assurance, taxe et entretien
+- Estimation du seuil d’apport, de la date d’achat et de l’âge correspondant
+- Projection du patrimoine financier et de la valeur nette immobilière sur trois scénarios
+- Affichage du résultat central en valeur nominale et en pouvoir d’achat actuel
+- Héritage exclu par défaut et activable seulement de manière explicite
+- Point zéro patrimonial et journal daté des changements
+- Nouvelle table isolée par RLS, sans droit d’insertion ou de suppression depuis le navigateur
+- Protection contre l’écrasement d’une modification faite depuis un autre appareil
+- Aucune information personnelle ni identifiant propriétaire dans le dépôt public
+
+## 1.1.0 — mise à jour technique ciblée
 
 Cette mise à jour ne lance aucune migration et ne modifie pas les lignes Supabase existantes lors du déploiement.
 
