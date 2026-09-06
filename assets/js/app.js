@@ -116,6 +116,7 @@ function switchTab(name, btn) {
     if (name === 'simulator') {
       renderGoals();
       requestAnimationFrame(() => {
+        window.MoumixPrivatePlan?.render();
         simUpdate();
         // Sur mobile, forcer le mode tableau
         if (window.innerWidth <= 768) {
@@ -321,7 +322,8 @@ function exportDataBackup() {
     prelevements,
     transactions,
     patrimoineHistory,
-    goals
+    goals,
+    privateProjectionPlan: window.MoumixPrivatePlan?.getExportData() || null
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1799,6 +1801,7 @@ function renderAll() {
   renderAccounts(); renderPositions(); renderAllocation(); renderByAccount();
   renderSummary(); renderFilterToggles(); renderChart();
   refreshProjectionIfActive();
+  window.MoumixPrivatePlan?.refreshFromPortfolio();
 }
 
 // ─── TITRE NAVIGATEUR ────────────────────────────────────────────────────────
@@ -2816,6 +2819,7 @@ function clearLoadedSession() {
   eurRates = {};
   document.getElementById('dogWidget')?.classList.add('hidden');
   document.getElementById('mainApp').classList.add('hidden');
+  window.MoumixPrivatePlan?.reset();
 }
 
 function initApp(user) {
@@ -2876,6 +2880,8 @@ function initApp(user) {
       renderAll();
       renderPrelevements();
       renderGoals();
+      window.MoumixPrivatePlan?.load(currentUser).catch(error =>
+        console.warn('[Moumix] Plan patrimonial privé indisponible:', error?.message || error));
       fetchEurUsd();
       _eurUsdInterval = setInterval(() => { if (_appReadyTask === task) fetchEurUsd(); }, 5 * 60 * 1000);
       setTimeout(() => { if (_appReadyTask === task) showDog(currentUser); }, TIMING_DOG_SHOW);
@@ -3924,6 +3930,16 @@ function showAppUpdatePrompt(onUpdate) {
 // ─── App namespace (optional) ───────────────────────────────────────────────
 window.App = window.App || {};
 window.App.authRecoveryVersion = '2026-08-28.1';
+window.App.getProjectionContext = () => ({
+  user: currentUser,
+  accounts: accounts.map(account => ({ ...account })),
+  positions: positions.map(position => ({ ...position })),
+  buckets: simGetPortfolioBuckets().map(bucket => ({ ...bucket })),
+});
+window.App.getSupabaseClient = () => sb;
+window.App.showDialog = showDialog;
+window.App.hideDialog = hideDialog;
+window.App.showToast = showToast;
 for (const k of ['openMobileActions', 'closeMobileActions', 'runMobileAction']) {
   window.App[k] = window[k];
 }
