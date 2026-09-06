@@ -1,18 +1,32 @@
 name: Daily patrimoine snapshot
 on:
   schedule:
-    - cron: '0 22 * * *'   # 22h UTC = minuit Paris (heure d'hiver) / 23h UTC = minuit Paris (heure d'été)
+    # Deux créneaux UTC couvrent automatiquement les changements d'heure.
+    # Le script n'écrit que pendant l'exécution correspondant à minuit à Paris.
+    - cron: '15 22 * * *'
+    - cron: '15 23 * * *'
   workflow_dispatch:        # permet de lancer manuellement depuis GitHub
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-patrimoine-snapshot
+  cancel-in-progress: false
+
 jobs:
   snapshot:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
       - name: Install dependencies
-        run: npm install @supabase/supabase-js
+        run: npm ci --omit=dev --no-audit --no-fund
+      - name: Validate application
+        run: npm run check && npm test
       - name: Run snapshot
         env:
           SUPA_URL: ${{ secrets.SUPA_URL }}
