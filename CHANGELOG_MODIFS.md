@@ -1,3 +1,15 @@
+# Moumix 2.0.1 — navigation et trajectoire
+
+- logo et navigation réunis dans l’en-tête sur ordinateur ;
+- navigation Synthèse, Portefeuille et Trajectoire ancrée en bas sur mobile ;
+- ajout de compte, ajout de position, export et déconnexion regroupés dans un hamburger commun ;
+- taux USD/EUR conservé sous une forme textuelle discrète ;
+- scénario central expliqué par capital actuel, futurs versements et rendements estimés ;
+- affichage optionnel du résultat en euros d’aujourd’hui selon une inflation modifiable ;
+- aucune modification du schéma Supabase ou des données enregistrées.
+
+---
+
 # Moumix 2.0.0 — refonte patrimoniale
 
 Cette version change l’expérience et l’identité, mais conserve le modèle Supabase existant. Aucun script SQL ni recalcul rétroactif n’est nécessaire.

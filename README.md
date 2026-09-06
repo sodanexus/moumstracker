@@ -2,7 +2,7 @@
 
 <img src="./assets/brand/moumix-mark.svg" width="88" height="88" alt="Logo Moumix">
 
-# Moumix Finance
+# Moumix
 ### Le patrimoine, au même endroit
 
 <p><em>Comprendre ce que j’ai. Voir où il se trouve. Suivre le chemin parcouru.</em></p>
@@ -87,9 +87,9 @@ La version 2 introduit une identité complète autour d’un symbole en forme de
 
 Sur mobile :
 
-- le logo et le taux USD/EUR restent accessibles sans encombrer l’en-tête ;
-- la navigation est compacte et respecte les zones sûres de l’iPhone ;
-- les actions d’ajout et le compte personnel sont regroupés derrière le bouton à trois points ;
+- le logo, la navigation et le taux USD/EUR partagent un en-tête compact sur ordinateur ;
+- la navigation principale est ancrée en bas sur mobile et respecte les zones sûres de l’iPhone ;
+- les actions d’ajout et le compte personnel sont regroupés derrière un hamburger discret ;
 - le pincement à deux doigts reste disponible ;
 - les champs ne déclenchent pas de zoom automatique au focus.
 
@@ -105,7 +105,7 @@ Le taux **USD/EUR** reste présent car il est utile à la compréhension des pos
 
 ## Version en cours
 
-**2.0.0 — septembre 2026**
+**2.0.1 — septembre 2026**
 
 Cette version reconstruit l’expérience sans migrer ni réécrire la base existante :
 
@@ -114,6 +114,8 @@ Cette version reconstruit l’expérience sans migrer ni réécrire la base exis
 - allocation regroupable par poche, compte ou actif ;
 - aperçu utile des comptes à la place des jalons ;
 - trajectoire simplifiée et toujours fondée sur le portefeuille réel ;
+- lecture séparée du capital existant, des futurs versements et des rendements estimés ;
+- équivalent en euros d’aujourd’hui calculé avec une inflation modifiable ;
 - nouvelles icônes PWA ;
 - mascotte et cotations défilantes retirées du HTML et du JavaScript ;
 - modèle Supabase et historique existants conservés.

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Moumix — Patrimoine</title>
 <meta name="description" content="Moumix, le tableau de bord privé pour comprendre, organiser et suivre son patrimoine.">
-<meta name="moumix-version" content="2.0.0">
+<meta name="moumix-version" content="2.0.1">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -57,24 +57,24 @@
   </div>
 </div>
 
-<!-- MENU MOBILE : actions rapides et identité, hors du contenu mis en pause. -->
+<!-- MENU PRINCIPAL : actions et identité, hors du contenu mis en pause. -->
 <div class="modal-overlay mobile-actions-overlay" id="mobileActionsModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="mobileActionsTitle" inert onclick="if(event.target===this)closeMobileActions()">
   <div class="mobile-actions-sheet">
     <div class="mobile-actions-handle" aria-hidden="true"></div>
     <div class="mobile-actions-heading">
-      <h2 id="mobileActionsTitle">Actions rapides</h2>
+      <h2 id="mobileActionsTitle">Menu</h2>
       <button type="button" class="mobile-actions-close" aria-label="Fermer le menu" onclick="closeMobileActions()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
       </button>
     </div>
     <div class="mobile-actions-list">
+      <button type="button" class="mobile-action" id="mobileAddAccountBtn" onclick="runMobileAction('account')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 10h18M12 13v4M10 15h4"/></svg>
+        <span>Ajouter un compte</span>
+      </button>
       <button type="button" class="mobile-action mobile-action-primary" id="mobileAddPositionBtn" onclick="runMobileAction('position')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
         <span>Ajouter une position</span>
-      </button>
-      <button type="button" class="mobile-action" onclick="runMobileAction('account')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 10h18M12 13v4M10 15h4"/></svg>
-        <span>Ajouter un compte</span>
       </button>
     </div>
     <section class="mobile-account-section" aria-labelledby="mobileAccountTitle">
@@ -99,60 +99,41 @@
 </div>
 
 <div class="app hidden" id="mainApp">
-  <header>
-    <div class="brand-mark" aria-label="Moumix Finance" title="Moumix Finance">
-      <img src="./assets/brand/moumix-mark.svg" width="44" height="44" alt="">
+  <header class="app-header">
+    <div class="header-primary">
+      <div class="brand-mark" aria-label="Moumix Finance" title="Moumix Finance">
+        <img src="./assets/brand/moumix-mark.svg" width="44" height="44" alt="">
+      </div>
+
+      <nav class="navigation-bar" aria-label="Navigation principale">
+        <div class="tabs-nav" id="mainTabs" role="tablist">
+          <button type="button" id="nav-overview" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-overview" onclick="switchTab('overview', this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h6V4H4v9Zm10 7h6V11h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"/></svg>
+            <span>Synthèse</span>
+          </button>
+          <button type="button" id="nav-details" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-details" onclick="switchTab('details', this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5h18M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M7 15h4"/></svg>
+            <span>Portefeuille</span>
+          </button>
+          <button type="button" id="nav-simulator" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-simulator" onclick="switchTab('simulator', this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 17 5-5 4 3 7-8"/><path d="M15 7h5v5"/></svg>
+            <span>Trajectoire</span>
+          </button>
+        </div>
+      </nav>
     </div>
-    <div class="hdr-actions">
-        <div id="eurusd-widget" class="eurusd-widget" title="Taux de change USD/EUR">
+
+    <div class="header-tools">
+      <div id="eurusd-widget" class="eurusd-widget" title="Taux de change USD/EUR">
         <span class="eurusd-label">USD/EUR</span>
         <span id="eurusd-rate">—</span>
         <span id="eurusd-change" class="eurusd-change"></span>
       </div>
-
-      <button type="button" class="btn btn-sm btn-icon" id="openAccountBtn" onclick="openModal('account')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-        Compte
+      <button type="button" class="mobile-actions-toggle app-menu-toggle" id="mobileActionsBtn" aria-label="Ouvrir le menu" title="Menu" aria-haspopup="dialog" aria-controls="mobileActionsModal" aria-expanded="false" onclick="openMobileActions()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
-      <button type="button" class="btn btn-sm btn-primary btn-icon" id="openPositionBtn" onclick="openModal('position')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-        Position
-      </button>
-      <div class="user-menu" id="userMenu">
-        <div class="user-btn" role="button" tabindex="0" aria-haspopup="menu" aria-expanded="false" onclick="toggleUserMenu()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleUserMenu()}">
-          <div class="user-avatar" id="userAvatar">?</div>
-          <span id="userDisplayName">…</span>
-          <span class="user-caret">▼</span>
-        </div>
-        <div class="user-dropdown hidden" id="userDropdown" role="menu">
-          <div class="user-email" id="userEmailDisplay"></div>
-          <div class="user-dropdown-item" role="menuitem" tabindex="0" onclick="exportDataBackup()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();exportDataBackup()}">↓ Exporter mes données</div>
-          <div class="user-dropdown-item danger" role="menuitem" tabindex="0" onclick="signOut()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();signOut()}">↩ Se déconnecter</div>
-        </div>
-      </div>
     </div>
   </header>
-
-  <!-- ONGLETS NAVIGATION -->
-  <div class="navigation-bar">
-    <div class="tabs-nav" id="mainTabs" role="tablist" aria-label="Navigation principale">
-      <button type="button" id="nav-overview" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-overview" onclick="switchTab('overview', this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h6V4H4v9Zm10 7h6V11h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"/></svg>
-        <span>Synthèse</span>
-      </button>
-      <button type="button" id="nav-details" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-details" onclick="switchTab('details', this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5h18M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M7 15h4"/></svg>
-        <span>Portefeuille</span>
-      </button>
-      <button type="button" id="nav-simulator" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-simulator" onclick="switchTab('simulator', this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 17 5-5 4 3 7-8"/><path d="M15 7h5v5"/></svg>
-        <span>Trajectoire</span>
-      </button>
-    </div>
-    <button type="button" class="mobile-actions-toggle" id="mobileActionsBtn" aria-label="Actions et mon compte" title="Actions et mon compte" aria-haspopup="dialog" aria-controls="mobileActionsModal" aria-expanded="false" onclick="openMobileActions()">
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
-    </button>
-  </div>
 
   <!-- TAB: VUE D'ENSEMBLE -->
   <div class="tab-panel active" id="tab-overview" role="tabpanel" aria-labelledby="nav-overview">
@@ -406,6 +387,16 @@
               <div class="sim-settings-body">
                 <div class="sim-help">Chaque poche possède une hypothèse annuelle modifiable. Les variantes prudente et favorable sont calculées autour de ce scénario central.</div>
                 <div class="sim-category-settings" id="sim-category-settings"></div>
+                <div class="sim-inflation-setting">
+                  <div>
+                    <label class="sim-field-label" for="sim-inflation">Inflation moyenne</label>
+                    <div class="sim-help">Sert uniquement à afficher le pouvoir d’achat en euros d’aujourd’hui.</div>
+                  </div>
+                  <div class="sim-input-wrap sim-input-wrap-compact">
+                    <input type="number" id="sim-inflation" min="0" max="20" step="0.1" value="2" oninput="simUpdateDebounced()" class="sim-input">
+                    <span class="sim-unit">% / an</span>
+                  </div>
+                </div>
                 <button type="button" class="sim-reset-btn" onclick="simResetRates()">Rétablir les hypothèses proposées</button>
               </div>
             </details>
@@ -420,7 +411,7 @@
 
           <div class="card trajectory-main-card">
             <div class="card-body" style="padding:16px 20px">
-              <div class="card-subtitle" style="margin-bottom:14px">Valeur estimée au terme de l’horizon</div>
+              <div class="card-subtitle" style="margin-bottom:14px">Valeur estimée au terme de l’horizon, en euros futurs</div>
               <div class="sim-scenario-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-radius:10px;overflow:hidden">
 
                 <!-- Prudent -->
@@ -448,6 +439,7 @@
                   <div class="scen-label scen-label-real">Rythme attendu</div>
                   <div id="sim-rate-real" class="sim-rate-label">7,0%</div>
                   <div id="sim-res-total-real" class="scen-total-real">—</div>
+                  <div id="sim-res-real-today" class="scen-real-today">—</div>
                   <div id="sim-res-interest-real" class="scen-interest" style="color:var(--gain)">—</div>
                   <div class="scenario-divider"></div>
                   <div class="metric-label">Croissance estimée / mois</div>
@@ -482,6 +474,7 @@
                 </div>
 
               </div>
+              <p class="trajectory-formula-summary" id="sim-formula-summary" aria-live="polite">La projection se mettra à jour avec vos réglages.</p>
             </div>
           </div>
 
