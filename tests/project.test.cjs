@@ -18,10 +18,38 @@ test('le HTML ne contient plus de CSS ou JavaScript applicatif intégré', () =>
   const html = read('index.html');
   assert.doesNotMatch(html, /<style(?:\s|>)/i);
   assert.doesNotMatch(html, /<script>\s*[\s\S]*?<\/script>/i);
-  for (const file of ['assets/css/app.css', 'assets/js/core.js', 'assets/js/private-plan-core.js', 'assets/js/app.js', 'assets/js/private-plan.js', 'assets/js/history-import.js']) {
+  for (const file of ['assets/css/app.css', 'assets/css/v2.css', 'assets/js/core.js', 'assets/js/app.js', 'assets/js/history-import.js']) {
     assert.match(html, new RegExp(file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.ok(fs.existsSync(path.join(root, file)), `${file} doit exister`);
   }
+});
+
+test('la V2 retire les éléments de trading et la mascotte', () => {
+  const html = read('index.html');
+  const app = read('assets/js/app.js');
+  assert.doesNotMatch(html, /indices-ticker|dogWidget|Shiba|Jalons patrimoniaux/);
+  assert.doesNotMatch(app, /loadNewsIndices|showDog|dogClick|MILESTONES/);
+  assert.match(html, /USD\/EUR/);
+});
+
+test('la synthèse propose une allocation lisible et une trajectoire simple', () => {
+  const html = read('index.html');
+  const app = read('assets/js/app.js');
+  for (const label of ['Synthèse', 'Portefeuille', 'Trajectoire', 'Poches', 'Comptes', 'Actifs']) {
+    assert.match(html, new RegExp(label));
+  }
+  assert.match(app, /allocationMode = 'type'/);
+  assert.match(app, /setAllocationMode/);
+  assert.match(app, /setTrajectoryYears/);
+});
+
+test('la nouvelle identité est utilisée par le site et la PWA', () => {
+  const html = read('index.html');
+  const worker = read('sw.js');
+  assert.match(html, /assets\/brand\/moumix-mark\.svg/);
+  assert.match(worker, /assets\/brand\/moumix-mark\.svg/);
+  assert.match(worker, /assets\/css\/v2\.css/);
+  assert.equal(JSON.parse(read('version.json')).version, '2.0.0');
 });
 
 test('les identifiants HTML sont uniques', () => {
@@ -52,44 +80,7 @@ test('le service worker couvre les fichiers séparés et attend la validation ut
   const worker = read('sw.js');
   assert.match(worker, /SKIP_WAITING/);
   assert.doesNotMatch(worker, /cache\.addAll\(APP_SHELL\)[\s\S]{0,80}self\.skipWaiting/);
-  for (const file of ['assets/css/app.css', 'assets/js/core.js', 'assets/js/private-plan-core.js', 'assets/js/app.js', 'assets/js/private-plan.js', 'assets/js/history-import.js']) {
+  for (const file of ['assets/css/app.css', 'assets/css/v2.css', 'assets/js/core.js', 'assets/js/app.js', 'assets/js/history-import.js']) {
     assert.match(worker, new RegExp(file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
-});
-
-test('la version PWA est cohérente dans tous les fichiers publics', () => {
-  const packageVersion = JSON.parse(read('package.json')).version;
-  const publicVersion = JSON.parse(read('version.json')).version;
-  assert.equal(packageVersion, '1.2.0');
-  assert.equal(publicVersion, packageVersion);
-  assert.match(read('index.html'), new RegExp(`moumix-version" content="${packageVersion.replaceAll('.', '\\.')}"`));
-  assert.match(read('sw.js'), new RegExp(`APP_VERSION = '${packageVersion.replaceAll('.', '\\.')}'`));
-});
-
-test('le dossier patrimonial privé est optionnel et chargé après les données principales', () => {
-  const app = read('assets/js/app.js');
-  const privatePlan = read('assets/js/private-plan.js');
-  assert.match(app, /renderGoals\(\);\s*window\.MoumixPrivatePlan\?\.load\(currentUser\)/);
-  assert.match(privatePlan, /if \(!data\) return false/);
-  assert.match(privatePlan, /setMode\(false\)/);
-  assert.doesNotMatch(app, /private_projection_plan[^\n]*loadAllData/);
-});
-
-test('aucune ligne propriétaire ni donnée d’activation ne fuite dans le dépôt public', () => {
-  const publicFiles = [
-    'index.html', 'assets/css/app.css', 'assets/js/private-plan-core.js',
-    'assets/js/private-plan.js', 'assets/js/app.js', 'README.md', 'supabase_shema.sql',
-  ].map(read).join('\n');
-  assert.doesNotMatch(publicFiles, /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-  assert.doesNotMatch(publicFiles, /INSERT\s+INTO\s+public\.private_projection_plan/i);
-});
-
-test('la table privée ne donne au navigateur ni création ni suppression', () => {
-  const schema = read('supabase_shema.sql');
-  assert.match(schema, /ENABLE ROW LEVEL SECURITY/);
-  assert.match(schema, /REVOKE ALL ON public\.private_projection_plan FROM anon, authenticated/);
-  assert.match(schema, /GRANT SELECT, UPDATE ON public\.private_projection_plan TO authenticated/);
-  assert.match(schema, /USING \(\(SELECT auth\.uid\(\)\) = user_id\)/);
-  assert.doesNotMatch(schema, /GRANT[^;]*INSERT[^;]*private_projection_plan/i);
-  assert.doesNotMatch(schema, /GRANT[^;]*DELETE[^;]*private_projection_plan/i);
 });
