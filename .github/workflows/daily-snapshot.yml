@@ -1,4 +1,4 @@
-name: Daily patrimoine snapshot
+name: Moobank — snapshot quotidien
 on:
   schedule:
     # Deux créneaux UTC couvrent automatiquement les changements d'heure.
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: daily-patrimoine-snapshot
+  group: moobank-daily-patrimoine-snapshot
   cancel-in-progress: false
 
 jobs:
