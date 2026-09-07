@@ -1,3 +1,15 @@
+# Moobank 2.3.1 — navigation mobile et trajectoire
+
+- suppression de l’ancienne règle qui pouvait encore replacer la navigation principale en haut sur mobile ;
+- position basse définie explicitement dans les deux feuilles de style, avec respect de la safe area iPhone ;
+- courbe « La trajectoire dans le temps » intégrée dans la colonne de résultats sur ordinateur pour occuper l’espace disponible ;
+- ordre mobile préservé : plan, résultats, puis courbe ;
+- badge « Central » replacé dans le flux et espacé du libellé « Rythme attendu » ;
+- ressources versionnées en 2.3.1 pour forcer leur rechargement dans la PWA ;
+- aucune modification de Supabase ni des données enregistrées.
+
+---
+
 # Moobank 2.3.0 — identité et synthèse allégée
 
 - nom public harmonisé en **Moobank** dans le site, le manifeste, le service worker, les exports, les tests et le workflow GitHub Actions ;

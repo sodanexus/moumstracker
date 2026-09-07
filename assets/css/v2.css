@@ -526,7 +526,7 @@ td { padding-top: 12px; padding-bottom: 12px; }
   font-size: .7rem;
   line-height: 1.5;
 }
-.trajectory-results { display: block; align-self: start; }
+.trajectory-results { display: grid; align-self: start; gap: 16px; }
 .trajectory-main-card { width: 100%; }
 .trajectory-main-card .sim-scenario-grid {
   gap: 8px !important;
@@ -545,6 +545,22 @@ td { padding-top: 12px; padding-bottom: 12px; }
 .trajectory-main-card .scen-cell-mid {
   border-color: rgba(85, 230, 177, .3);
   background: rgba(85, 230, 177, .075);
+}
+.votre-taux-badge {
+  position: static;
+  display: inline-flex;
+  align-self: center;
+  margin: 0 0 8px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #07120f;
+  font-size: .54rem;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 .trajectory-main-card .scenario-divider,
 .trajectory-main-card .metric-label,
@@ -578,7 +594,13 @@ td { padding-top: 12px; padding-bottom: 12px; }
 .trajectory-legend { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .trajectory-legend-item { min-width: 0; color: var(--muted); font-size: .64rem; }
 .trajectory-legend-item strong { display: block; overflow: hidden; margin-top: 2px; color: var(--text); font: 600 .68rem 'DM Mono', monospace; text-overflow: ellipsis; white-space: nowrap; }
-.trajectory-chart .card-body { padding: 10px 8px 2px; }
+.trajectory-chart { width: 100%; margin: 0; }
+.trajectory-chart .card-header { align-items: center; gap: 14px; }
+.trajectory-chart-heading-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.trajectory-chart-body { padding: 10px 8px 2px; }
+.trajectory-graph-wrap { position: relative; width: 100%; height: 300px; overflow: visible; }
+.trajectory-graph-wrap svg { position: relative; z-index: 1; display: block; width: 100%; height: 300px; overflow: visible; }
+.trajectory-tooltip { position: absolute; z-index: 20; pointer-events: none; opacity: 0; transform: translateY(4px) scale(.97); transition: opacity .15s, transform .15s; }
 #sim-projected-breakdown { display: none !important; }
 .trajectory-chart-legend { display: flex; gap: 14px; color: var(--muted); font-size: .67rem; }
 .trajectory-chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
@@ -641,11 +663,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   .app > header .eurusd-widget { display: flex !important; min-height: 34px; padding: 5px 3px; font-size: .67rem; }
   .app > header .eurusd-change { display: none; }
   .navigation-bar {
-    position: fixed;
-    inset: auto 0 0 0;
-    z-index: 90;
-    width: 100%;
-    margin: 0;
+    position: fixed !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    z-index: 90 !important;
+    width: 100% !important;
+    margin: 0 !important;
     padding: 7px max(10px, var(--safe-right)) max(7px, var(--safe-bottom)) max(10px, var(--safe-left));
     border-width: 1px 0 0;
     border-radius: 0;
@@ -657,6 +682,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   .navigation-bar .tabs-nav { width: 100%; gap: 3px; }
   .navigation-bar .tab-btn { flex: 1; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; min-height: 52px; padding: 5px 7px; font-size: .75rem; }
   .navigation-bar .tab-btn svg { width: 19px; height: 19px; }
+  .app-update-prompt { bottom: max(76px, calc(66px + var(--safe-bottom))) !important; }
   .mobile-actions-overlay { align-items: flex-end; justify-content: center; padding: 0; }
   .mobile-actions-sheet {
     width: 100%;
@@ -691,7 +717,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   .trajectory-main-result { padding: 20px; }
   .trajectory-result-total { font-size: 2.2rem; }
   .trajectory-legend { grid-template-columns: 1fr; }
-  #sim-graph-wrap, #sim-svg { height: 240px !important; }
+  .trajectory-graph-wrap, .trajectory-graph-wrap svg { height: 240px !important; }
   .objectives-heading { align-items: center; }
   .login-box { margin: 14px; padding: 28px 22px; }
   .modal { padding: 24px 20px; }

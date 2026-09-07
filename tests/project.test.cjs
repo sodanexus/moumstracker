@@ -58,7 +58,7 @@ test('la nouvelle identité transparente est utilisée par le site et la PWA', (
   assert.match(worker, /assets\/css\/v2\.css/);
   assert.doesNotMatch(mark, /<rect\b/i);
   assert.equal(manifest.name, 'Moobank — Patrimoine');
-  assert.equal(JSON.parse(read('version.json')).version, '2.3.0');
+  assert.equal(JSON.parse(read('version.json')).version, '2.3.1');
 });
 
 test('la synthèse remplace le doublon des poches par trois actualités non bloquantes', () => {
@@ -104,7 +104,9 @@ test('la composition du résultat est fusionnée dans la carte de trajectoire', 
   const chartIndex = html.indexOf('trajectory-chart');
   assert.ok(cardIndex >= 0 && compositionIndex > cardIndex && chartIndex > compositionIndex);
   assert.doesNotMatch(html, /class="card trajectory-composition(?:"|\s)/);
-  assert.match(css, /\.trajectory-results \{ display: block; align-self: start; \}/);
+  assert.match(css, /\.trajectory-results \{ display: grid; align-self: start; gap: 16px; \}/);
+  assert.ok(html.indexOf('trajectory-results') < chartIndex && chartIndex < html.indexOf('<!-- OBJECTIFS'));
+  assert.doesNotMatch(html, /votre-taux-badge" style=/);
 });
 
 test('le plan mensuel est modifiable par compte et isolé localement par utilisateur', () => {
@@ -187,10 +189,13 @@ test('le service worker couvre les fichiers séparés et attend la validation ut
 
 test('la safe area mobile appartient à l’en-tête et la navigation reste en bas', () => {
   const css = read('assets/css/v2.css');
+  const legacyCss = read('assets/css/app.css');
   assert.match(css, /--safe-top: env\(safe-area-inset-top, 0px\)/);
   assert.match(css, /--safe-bottom: env\(safe-area-inset-bottom, 0px\)/);
   assert.match(css, /\.app > header \{[\s\S]*?top: 0;[\s\S]*?padding: calc\(var\(--safe-top\) \+ 7px\)/);
-  assert.match(css, /@media \(max-width: 820px\)[\s\S]*?\.navigation-bar \{[\s\S]*?position: fixed;[\s\S]*?inset: auto 0 0 0;[\s\S]*?var\(--safe-bottom\)/);
+  assert.match(css, /@media \(max-width: 820px\)[\s\S]*?\.navigation-bar \{[\s\S]*?position: fixed !important;[\s\S]*?top: auto !important;[\s\S]*?bottom: 0 !important;[\s\S]*?var\(--safe-bottom\)/);
+  assert.match(legacyCss, /@media\(max-width:768px\)[\s\S]*?\.navigation-bar\{[\s\S]*?position:fixed;[\s\S]*?top:auto;[\s\S]*?bottom:0;[\s\S]*?safe-area-inset-bottom/);
+  assert.doesNotMatch(legacyCss, /\.navigation-bar\{[\s\S]{0,220}position:sticky;[\s\S]{0,120}top:env\(safe-area-inset-top\)/);
 });
 
 test('les versions publiques et les ressources versionnées sont cohérentes', () => {
@@ -199,7 +204,7 @@ test('les versions publiques et les ressources versionnées sont cohérentes', (
   const version = JSON.parse(read('version.json')).version;
   const pkg = JSON.parse(read('package.json'));
   const lock = JSON.parse(read('package-lock.json'));
-  assert.equal(version, '2.3.0');
+  assert.equal(version, '2.3.1');
   assert.equal(pkg.version, version);
   assert.equal(lock.version, version);
   assert.equal(lock.packages[''].version, version);

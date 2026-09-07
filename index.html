@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Moobank — Patrimoine</title>
 <meta name="description" content="Moobank, le tableau de bord privé pour comprendre, organiser et suivre son patrimoine.">
-<meta name="moobank-version" content="2.3.0">
+<meta name="moobank-version" content="2.3.1">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,11 +14,11 @@
 <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="./assets/brand/moobank-mark.svg">
-<link rel="manifest" href="manifest.json?v=2.3.0">
+<link rel="manifest" href="manifest.json?v=2.3.1">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=2.3.0">
-<link rel="stylesheet" href="./assets/css/v2.css?v=2.3.0">
+<link rel="stylesheet" href="./assets/css/app.css?v=2.3.1">
+<link rel="stylesheet" href="./assets/css/v2.css?v=2.3.1">
 </head>
 <body>
   <!-- OFFLINE BANNER -->
@@ -437,7 +437,7 @@
 
                 <!-- Central -->
                 <div class="scen-cell-mid">
-                  <div class="votre-taux-badge" style="position:absolute;top:-1px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-size:0.55rem;font-weight:700;padding:2px 8px;border-radius:0 0 6px 6px;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap">Central</div>
+                  <div class="votre-taux-badge">Central</div>
                   <div class="scen-label scen-label-real">Rythme attendu</div>
                   <div id="sim-rate-real" class="sim-rate-label">7,0%</div>
                   <div id="sim-res-total-real" class="scen-total-real">—</div>
@@ -494,34 +494,34 @@
             </div>
           </div>
 
-        </div>
-      </div>
-
-      <!-- Graphique courbes -->
-      <div class="card trajectory-chart" id="sim-chart-card" style="margin-bottom:16px">
-        <div class="card-header">
-          <div>
-            <div class="card-title">La trajectoire dans le temps</div>
-            <div class="card-subtitle">Le scénario central reste mis en avant</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-            <div class="trajectory-chart-legend">
-              <span><i style="background:#ff7189"></i>Prudent</span>
-              <span><i style="background:#55e6b1"></i>Central</span>
-              <span><i style="background:#65a8ff"></i>Favorable</span>
+          <!-- Courbes placees dans la colonne de resultats sur ordinateur. -->
+          <div class="card trajectory-chart" id="sim-chart-card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">La trajectoire dans le temps</div>
+                <div class="card-subtitle">Le scénario central reste mis en avant</div>
+              </div>
+              <div class="trajectory-chart-heading-actions">
+                <div class="trajectory-chart-legend">
+                  <span><i style="background:#ff7189"></i>Prudent</span>
+                  <span><i style="background:#55e6b1"></i>Central</span>
+                  <span><i style="background:#65a8ff"></i>Favorable</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        <div class="card-body" style="padding:12px 0 4px">
-          <div id="sim-graph-wrap" style="position:relative;width:100%;height:300px;overflow:visible">
-            <svg id="sim-svg" width="100%" height="300" style="display:block;overflow:visible;position:relative;z-index:1"></svg>
-            <div id="sim-tooltip" style="position:absolute;pointer-events:none;opacity:0;transition:opacity 0.15s,transform 0.15s;transform:translateY(4px) scale(0.97);z-index:20">
-              <div class="sim-tt-glass">
-                <div id="sim-tt-year" class="sim-tt-year"></div>
-                <div id="sim-tt-body" class="sim-tt-body"></div>
+            <div class="card-body trajectory-chart-body">
+              <div id="sim-graph-wrap" class="trajectory-graph-wrap">
+                <svg id="sim-svg" width="100%" height="300" aria-label="Projection du patrimoine dans le temps"></svg>
+                <div id="sim-tooltip" class="trajectory-tooltip">
+                  <div class="sim-tt-glass">
+                    <div id="sim-tt-year" class="sim-tt-year"></div>
+                    <div id="sim-tt-body" class="sim-tt-body"></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -543,9 +543,9 @@
 
   </div><!-- end tab-simulator -->
 
-<script src="./assets/js/core.js?v=2.3.0"></script>
-<script src="./assets/js/trajectory-core.js?v=2.3.0"></script>
-<script src="./assets/js/app.js?v=2.3.0"></script>
+<script src="./assets/js/core.js?v=2.3.1"></script>
+<script src="./assets/js/trajectory-core.js?v=2.3.1"></script>
+<script src="./assets/js/app.js?v=2.3.1"></script>
 
 </div><!-- end .app -->
 
@@ -753,6 +753,6 @@
   </div>
 </div>
 
-<script src="./assets/js/history-import.js?v=2.3.0"></script>
+<script src="./assets/js/history-import.js?v=2.3.1"></script>
 </body>
 </html>
