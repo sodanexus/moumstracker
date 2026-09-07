@@ -49,7 +49,58 @@ test('la nouvelle identité est utilisée par le site et la PWA', () => {
   assert.match(html, /assets\/brand\/moumix-mark\.svg/);
   assert.match(worker, /assets\/brand\/moumix-mark\.svg/);
   assert.match(worker, /assets\/css\/v2\.css/);
-  assert.equal(JSON.parse(read('version.json')).version, '2.0.0');
+  assert.equal(JSON.parse(read('version.json')).version, '2.1.0');
+});
+
+test('la navigation et les actions suivent la nouvelle hiérarchie responsive', () => {
+  const html = read('index.html');
+  const css = read('assets/css/v2.css');
+  const app = read('assets/js/app.js');
+  assert.match(html, /header-primary[\s\S]*brand-mark[\s\S]*navigation-bar/);
+  assert.match(html, /app-menu-toggle/);
+  assert.match(css, /@media \(max-width: 768px\)[\s\S]*\.navigation-bar \{[\s\S]*position: fixed/);
+  assert.doesNotMatch(app, /mobileActionsMedia\.matches/);
+  assert.doesNotMatch(html, /id="openAccountBtn"|id="openPositionBtn"|id="userMenu"/);
+});
+
+test('la trajectoire explicite inflation, versements et rendement', () => {
+  const html = read('index.html');
+  const app = read('assets/js/app.js');
+  assert.match(html, /id="sim-inflation"/);
+  assert.match(html, /id="sim-res-real-today"/);
+  assert.match(html, /id="sim-formula-summary"/);
+  assert.match(app, /Math\.pow\(1 \+ inflation \/ 100, years\)/);
+  assert.match(app, /futurs versements/);
+});
+
+test('le plan mensuel est modifiable par compte et isolé localement par utilisateur', () => {
+  const html = read('index.html');
+  const app = read('assets/js/app.js');
+  assert.match(html, /id="sim-contribution-plan"/);
+  assert.match(html, /id="sim-plan-total"/);
+  assert.doesNotMatch(html, /id="sim-monthly"|id="sim-contribution-target"/);
+  assert.match(app, /SIM_PLAN_STORAGE_PREFIX \+ userId/);
+  assert.match(app, /MoumixCore\.groupMonthlyContributions/);
+  assert.match(app, /trajectoryPlan: \{ \.\.\.simContributionPlan \}/);
+});
+
+test('l’ancien plan privé est absent du runtime et son nettoyage reste optionnel', () => {
+  const html = read('index.html');
+  const app = read('assets/js/app.js');
+  const schema = read('supabase_shema.sql');
+  const cleanup = read('scripts/optional/remove-private-projection-plan.sql');
+  assert.doesNotMatch(html + app + schema, /private_projection_plan/);
+  assert.match(cleanup, /DROP TABLE IF EXISTS public\.private_projection_plan/);
+  for (const protectedTable of ['accounts', 'positions', 'transactions', 'prelevements', 'goals', 'patrimoine_history']) {
+    assert.doesNotMatch(cleanup, new RegExp(`DROP TABLE[^;]*${protectedTable}`, 'i'));
+  }
+});
+
+test('le nom public de l’application est Moumix-Finance', () => {
+  const html = read('index.html');
+  const manifest = JSON.parse(read('manifest.json'));
+  assert.match(html, /<title>Moumix-Finance/);
+  assert.equal(manifest.short_name, 'Moumix-Finance');
 });
 
 test('les identifiants HTML sont uniques', () => {
