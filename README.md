@@ -106,7 +106,7 @@ Le taux **USD/EUR** reste présent car il est utile à la compréhension des pos
 
 ## Version en cours
 
-**2.3.1 — septembre 2026**
+**2.3.2 — septembre 2026**
 
 Cette version adopte le nom **Moobank** sans migrer ni réécrire la base existante :
 
@@ -118,6 +118,7 @@ Cette version adopte le nom **Moobank** sans migrer ni réécrire la base exista
 - navigation Synthèse, Portefeuille et Trajectoire fixée en bas sur mobile ;
 - zones sûres haute et basse de l’iPhone conservées ;
 - ancienne règle mobile supérieure supprimée pour que la navigation ne puisse plus remonter en haut ;
+- flou retiré de l’en-tête mobile : sur Safari, il capturait le positionnement fixe de la navigation et la maintenait en haut ;
 - courbe de trajectoire replacée sous les résultats dans la colonne de droite sur ordinateur ;
 - libellés « Central » et « Rythme attendu » séparés sans chevauchement ;
 - ancien plan mensuel local automatiquement repris sous la nouvelle identité ;

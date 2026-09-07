@@ -652,10 +652,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
     min-height: calc(54px + var(--safe-top));
     margin: 0 calc(0px - max(12px, var(--safe-right))) 14px calc(0px - max(12px, var(--safe-left)));
     padding: calc(var(--safe-top) + 7px) max(12px, var(--safe-right)) 7px max(12px, var(--safe-left));
-    background: rgba(9, 16, 19, .985);
+    /* Un backdrop-filter sur cet ancêtre transforme le repère de ses enfants
+       position:fixed dans WebKit. La navigation restait alors attachée ici,
+       en haut, au lieu d'être fixée au viewport. */
+    background: #091013;
     border-bottom: 1px solid rgba(48, 68, 76, .5);
-    -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
   .header-primary { gap: 0; }
   .brand-mark, .brand-mark img { width: 40px; height: 40px; }

@@ -1,3 +1,13 @@
+# Moobank 2.3.2 — navigation mobile réellement ancrée
+
+- retrait du `backdrop-filter` sur l’en-tête mobile, qui créait sur WebKit le repère de positionnement de la navigation fixe ;
+- conservation du fond opaque et de la safe area haute sans flou sur cet ancêtre ;
+- navigation désormais positionnée par rapport au viewport et ancrée au bas de l’iPhone ;
+- ressources versionnées en 2.3.2 pour invalider l’ancienne feuille de style dans la PWA ;
+- aucune modification de Supabase ni des données enregistrées.
+
+---
+
 # Moobank 2.3.1 — navigation mobile et trajectoire
 
 - suppression de l’ancienne règle qui pouvait encore replacer la navigation principale en haut sur mobile ;
