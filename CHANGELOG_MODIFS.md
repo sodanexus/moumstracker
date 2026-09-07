@@ -1,3 +1,13 @@
+# Moobank 2.4.1 — trajectoire responsive
+
+- hauteur du `viewBox` de la trajectoire alignée sur la hauteur réellement affichée du graphique ;
+- marges internes adaptées aux écrans étroits afin que la courbe exploite toute la largeur utile ;
+- recalcul conservé lors d’un changement de taille, d’orientation ou d’ouverture de l’onglet ;
+- ressources versionnées en 2.4.1 pour renouveler la PWA ;
+- aucune modification de Supabase ni des données enregistrées.
+
+---
+
 # Moobank 2.4.0 — navigation mobile et mouvement uniformes
 
 - suppression de la bande d’en-tête sur mobile : le contenu commence directement après la safe area haute ;

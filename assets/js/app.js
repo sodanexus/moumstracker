@@ -3329,9 +3329,17 @@ function simDrawChart() {
         : (svg.parentElement && svg.parentElement.offsetWidth > 0) ? svg.parentElement.offsetWidth
         : 640;
   if (W <= 0) { requestAnimationFrame(() => simDrawChart()); return; }
-  const H = 300;
-  const pad = { top: 28, right: 24, bottom: 36, left: 72 };
+  // Le viewBox doit utiliser exactement les dimensions affichées. Sur mobile,
+  // le cadre mesure 240 px de haut : conserver ici 300 px forçait Safari à
+  // centrer le dessin en préservant son ratio, avec de larges marges latérales.
+  const measuredHeight = wrap?.offsetHeight || parseFloat(getComputedStyle(svg).height);
+  const H = Number.isFinite(measuredHeight) && measuredHeight > 0 ? Math.round(measuredHeight) : 300;
+  const simCompact = W < 520;
+  const pad = simCompact
+    ? { top: 20, right: 14, bottom: 32, left: 52 }
+    : { top: 28, right: 24, bottom: 36, left: 72 };
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
   svg.setAttribute('height', H);
   svg.setAttribute('width', W);
 
@@ -3367,7 +3375,6 @@ function simDrawChart() {
 
   // Y grid + labels
   const yTicks = 5;
-  const simCompact = W < 420;
   function fmtY(v) {
     if (simCompact) {
       if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';

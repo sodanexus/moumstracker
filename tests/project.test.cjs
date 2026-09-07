@@ -58,7 +58,7 @@ test('la nouvelle identité transparente est utilisée par le site et la PWA', (
   assert.match(worker, /assets\/css\/v2\.css/);
   assert.doesNotMatch(mark, /<rect\b/i);
   assert.equal(manifest.name, 'Moobank — Patrimoine');
-  assert.equal(JSON.parse(read('version.json')).version, '2.4.0');
+  assert.equal(JSON.parse(read('version.json')).version, '2.4.1');
 });
 
 test('la synthèse remplace le doublon des poches par trois actualités non bloquantes', () => {
@@ -225,13 +225,25 @@ test('les trois vues gardent la même échelle et la même animation', () => {
   assert.doesNotMatch(app, /current\.style\.transform|goingRight|translateX\(-?14px\)/);
 });
 
+test('la courbe de trajectoire utilise ses dimensions mobiles réelles', () => {
+  const app = read('assets/js/app.js');
+  const css = read('assets/css/v2.css');
+  assert.match(css, /\.trajectory-graph-wrap, \.trajectory-graph-wrap svg \{ height: 240px !important; \}/);
+  assert.match(app, /wrap\?\.offsetHeight \|\| parseFloat\(getComputedStyle\(svg\)\.height\)/);
+  assert.match(app, /const H = Number\.isFinite\(measuredHeight\)/);
+  assert.match(app, /const simCompact = W < 520/);
+  assert.match(app, /top: 20, right: 14, bottom: 32, left: 52/);
+  assert.match(app, /preserveAspectRatio', 'xMidYMid meet'/);
+  assert.doesNotMatch(app, /const H = 300;[\s\S]{0,100}const pad/);
+});
+
 test('les versions publiques et les ressources versionnées sont cohérentes', () => {
   const html = read('index.html');
   const worker = read('sw.js');
   const version = JSON.parse(read('version.json')).version;
   const pkg = JSON.parse(read('package.json'));
   const lock = JSON.parse(read('package-lock.json'));
-  assert.equal(version, '2.4.0');
+  assert.equal(version, '2.4.1');
   assert.equal(pkg.version, version);
   assert.equal(lock.version, version);
   assert.equal(lock.packages[''].version, version);
