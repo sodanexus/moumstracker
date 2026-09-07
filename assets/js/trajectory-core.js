@@ -1,6 +1,6 @@
 /* Moteur de trajectoire pur : aucun DOM, aucun stockage et aucune écriture
    Supabase. Le calcul peut ainsi être vérifié indépendamment de l'interface. */
-(function exposeMoumixTrajectory(root) {
+(function exposeMoobankTrajectory(root) {
   'use strict';
 
   const DEFAULT_ASSUMPTIONS = Object.freeze({
@@ -136,6 +136,6 @@
     presentValue,
   });
 
-  root.MoumixTrajectory = api;
+  root.MoobankTrajectory = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

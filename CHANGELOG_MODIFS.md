@@ -1,4 +1,19 @@
-# Moumix-Finance 2.2.0 — safe area et robustesse
+# Moobank 2.3.0 — identité et synthèse allégée
+
+- nom public harmonisé en **Moobank** dans le site, le manifeste, le service worker, les exports, les tests et le workflow GitHub Actions ;
+- nouveau logo vectoriel sans tuile ni fond visible dans l’interface, la connexion et le README ;
+- suppression du mode « Comptes » dans l’allocation, désormais limitée à « Poches » et « Actifs » ;
+- remplacement de la carte de comptes redondante sur la Synthèse par trois actualités maximum liées aux principaux actifs ;
+- fil d’actualités non bloquant : une panne du fournisseur ne gêne ni la connexion ni le chargement des données ;
+- fusion de la valeur projetée et de sa composition dans une seule carte compacte sur ordinateur ;
+- navigation principale maintenue en bas sur mobile, avec zones sûres iPhone haute et basse ;
+- migration locale non destructive du plan mensuel vers la clé Moobank ;
+- nom du workflow et groupe de concurrence renommés sans modifier ses secrets ni son fonctionnement ;
+- aucune table, colonne ou ligne Supabase ajoutée, supprimée ou renommée.
+
+---
+
+# Moobank 2.2.0 — safe area et robustesse
 
 - safe area iPhone portée par l’en-tête lui-même, avec un fond opaque derrière la barre d’état ;
 - suppression du double décalage entre le padding général et l’en-tête sticky ;
@@ -15,9 +30,9 @@
 
 ---
 
-# Moumix-Finance 2.1.0 — plan mensuel personnalisé
+# Moobank 2.1.0 — plan mensuel personnalisé
 
-- nom public harmonisé en **Moumix-Finance** dans l’interface et la PWA ;
+- nom public harmonisé en **Moobank** dans l’interface et la PWA ;
 - versement mensuel configurable séparément pour chaque compte ;
 - total mensuel calculé automatiquement ;
 - regroupement fiable des versements par poche pour appliquer le bon rendement ;
@@ -29,7 +44,7 @@
 
 ---
 
-# Moumix-Finance 2.0.1 — navigation et trajectoire
+# Moobank 2.0.1 — navigation et trajectoire
 
 - logo et navigation réunis dans l’en-tête sur ordinateur ;
 - navigation Synthèse, Portefeuille et Trajectoire ancrée en bas sur mobile ;
@@ -41,7 +56,7 @@
 
 ---
 
-# Moumix 2.0.0 — refonte patrimoniale
+# Moobank 2.0.0 — refonte patrimoniale
 
 Cette version change l’expérience et l’identité, mais conserve le modèle Supabase existant. Aucun script SQL ni recalcul rétroactif n’est nécessaire.
 
@@ -81,7 +96,7 @@ Cette version change l’expérience et l’identité, mais conserve le modèle 
 
 ---
 
-# Moumix Finance 1.1.0 — mise à jour technique ciblée
+# Moobank 1.1.0 — mise à jour technique ciblée
 
 Cette mise à jour ne lance aucune migration et ne modifie pas les lignes Supabase existantes lors du déploiement.
 

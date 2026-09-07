@@ -1,5 +1,5 @@
 /* Primitives techniques sans dépendance au DOM, partagées avec les tests. */
-(function exposeMoumixCore(root) {
+(function exposeMoobankCore(root) {
   'use strict';
 
   async function mapWithConcurrency(items, limit, mapper) {
@@ -55,7 +55,7 @@
         await rollback(committed, operationError);
       } catch (rollbackError) {
         const error = new Error('operation_rollback_failed');
-        error.name = 'MoumixRollbackError';
+        error.name = 'MoobankRollbackError';
         error.operationError = operationError;
         error.rollbackError = rollbackError;
         throw error;
@@ -88,6 +88,6 @@
     runCompensatedOperation,
     retryOperation,
   });
-  root.MoumixCore = api;
+  root.MoobankCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

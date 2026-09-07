@@ -1,5 +1,5 @@
-const APP_VERSION = '2.2.0';
-const CACHE_NAME = `moumix-shell-${APP_VERSION}`;
+const APP_VERSION = '2.3.0';
+const CACHE_NAME = `moobank-shell-${APP_VERSION}`;
 const versioned = path => `${path}?v=${APP_VERSION}`;
 const APP_SHELL = [
   './',
@@ -8,7 +8,7 @@ const APP_SHELL = [
   versioned('./manifest.json'),
   versioned('./assets/css/app.css'),
   versioned('./assets/css/v2.css'),
-  './assets/brand/moumix-mark.svg',
+  './assets/brand/moobank-mark.svg',
   versioned('./assets/js/core.js'),
   versioned('./assets/js/trajectory-core.js'),
   versioned('./assets/js/app.js'),

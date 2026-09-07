@@ -26,7 +26,7 @@ const PREL_FREQ_MONTHLY = { mensuel: 1, trimestriel: 1 / 3, annuel: 1 / 12 };
 // plutôt que de laisser l'app silencieusement cassée.
 
 window.onerror = function(message, source, lineno, colno, error) {
-  console.error('[Moumix] Erreur non gérée', { message, source, lineno, colno, error });
+  console.error('[Moobank] Erreur non gérée', { message, source, lineno, colno, error });
   // Affiche le banner offline avec le message d'erreur
   const b = document.getElementById('offlineBanner');
   if (b) {
@@ -43,7 +43,7 @@ window.addEventListener('unhandledrejection', function(event) {
   const reason = event.reason;
   const msg = reason?.message || String(reason);
   if (msg.includes('NetworkError') || msg.includes('Failed to fetch') || msg.includes('AbortError')) return;
-  console.error('[Moumix] Promise non gérée', reason);
+  console.error('[Moobank] Promise non gérée', reason);
 });
 
 // ─── SUPABASE INIT ────────────────────────────────────────────────────────────
@@ -112,6 +112,7 @@ function switchTab(name, btn) {
       btn.setAttribute('aria-selected', 'true');
     }
     currentTabName = name;
+    if (name === 'overview') loadMarketNews();
     if (name === 'details') { renderAccounts(); renderPositions(); renderPrelevements(); }
     if (name === 'simulator') {
       renderGoals();
@@ -220,7 +221,7 @@ async function signOut() {
     const { error } = await sb.auth.signOut();
     if (error) throw error;
   } catch(e) {
-    console.error('[Moumix] signOut error:', e.message);
+    console.error('[Moobank] signOut error:', e.message);
     showToast('Déconnexion impossible pour le moment. Réessayez.', 'error');
   }
 }
@@ -276,7 +277,7 @@ function runMobileAction(action) {
 function exportDataBackup() {
   simEnsureContributionPlan();
   const payload = {
-    format: 'moumix-finance-backup',
+    format: 'moobank-backup',
     version: 1,
     exportedAt: new Date().toISOString(),
     accounts,
@@ -291,7 +292,7 @@ function exportDataBackup() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `moumix-backup-${parisDateKey()}.json`;
+  link.download = `moobank-backup-${parisDateKey()}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -406,7 +407,7 @@ function isTransientDbError(error) {
 }
 
 function retryDbWrite(operation) {
-  return MoumixCore.retryOperation(operation, {
+  return MoobankCore.retryOperation(operation, {
     attempts: 3,
     delays: [350, 1000],
     shouldRetry: isTransientDbError,
@@ -443,7 +444,7 @@ async function savePosition(position) {
 
 async function savePositionPrices(changedPositions, userId) {
   if (!userId) throw new Error('Session absente pendant l’actualisation');
-  const results = await MoumixCore.mapWithConcurrency(changedPositions, 4, async p => {
+  const results = await MoobankCore.mapWithConcurrency(changedPositions, 4, async p => {
     const { data, error } = await sb
       .from('positions')
       .update({
@@ -612,7 +613,7 @@ async function fetchEurRate(currency) {
     const d = await yfFetch(`/v8/finance/chart/EUR${currency}=X?interval=1d&range=1d`);
     const rate = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
     if (rate) { eurRates[currency] = rate; return rate; }
-  } catch(e) { console.error('[Moumix] fetchEurRate error:', e); }
+  } catch(e) { console.error('[Moobank] fetchEurRate error:', e); }
   return EUR_FALLBACKS[currency] || 1;
 }
 
@@ -629,7 +630,7 @@ async function fetchQuote(symbol) {
     if (!meta) return null;
     const rawPrice = Number(meta.regularMarketPrice ?? meta.previousClose);
     if (!Number.isFinite(rawPrice) || rawPrice <= 0 || !meta.currency) return null;
-    const { currency, unitFactor } = MoumixCore.normalizeQuoteCurrency(meta.currency);
+    const { currency, unitFactor } = MoobankCore.normalizeQuoteCurrency(meta.currency);
     const price = rawPrice * unitFactor;
     const rawPrevClose = Number(meta.chartPreviousClose ?? meta.previousClose ?? rawPrice);
     const prevClose = (Number.isFinite(rawPrevClose) ? rawPrevClose : rawPrice) * unitFactor;
@@ -654,7 +655,7 @@ async function fetchHistory(symbol) {
       const valid = closes.filter(v => v != null);
       if (valid.length < 2) continue;
       if (!result.meta?.currency) continue;
-      const { currency, unitFactor } = MoumixCore.normalizeQuoteCurrency(result.meta.currency);
+      const { currency, unitFactor } = MoobankCore.normalizeQuoteCurrency(result.meta.currency);
       const rate = await fetchEurRate(currency);
       return valid.map(value => {
         const normalized = value * unitFactor;
@@ -687,7 +688,7 @@ async function searchTickers(query, seq) {
     }));
 
     // Charger les prix en parallèle en arrière-plan
-    MoumixCore.mapWithConcurrency(filtered, 2, async (q, i) => {
+    MoobankCore.mapWithConcurrency(filtered, 2, async (q, i) => {
       try {
         const pr = await fetchQuote(q.symbol);
         if (pr) {
@@ -704,6 +705,83 @@ async function searchTickers(query, seq) {
 
     return results;
   } catch(e) { console.error('searchTickers ERROR:', e.message, e.stack); return null; }
+}
+
+// ─── ACTUALITÉS LIÉES AU PORTEFEUILLE ──────────────────────────────────────
+const MARKET_NEWS_TTL = 15 * 60 * 1000;
+let marketNewsLoadedAt = 0;
+let marketNewsLoading = false;
+let marketNewsUserId = null;
+
+function safeNewsUrl(rawUrl) {
+  try {
+    const url = new URL(String(rawUrl || ''));
+    return ['https:', 'http:'].includes(url.protocol) ? url.href : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function marketNewsDate(timestamp) {
+  const date = new Date(Number(timestamp) * 1000);
+  if (!Number.isFinite(date.getTime())) return '';
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+function marketNewsQueries() {
+  const ranked = [...positions]
+    .sort((a, b) => (Number(b.current) || 0) * (Number(b.qty) || 0) - (Number(a.current) || 0) * (Number(a.qty) || 0))
+    .map(position => String(position.symbol || '').trim())
+    .filter(Boolean);
+  const unique = [...new Set(ranked)].slice(0, 3);
+  return unique.length ? unique : ['marchés financiers France'];
+}
+
+async function loadMarketNews(force = false) {
+  const element = document.getElementById('marketNewsContent');
+  if (!element || marketNewsLoading || !currentUser) return;
+  const sameUser = marketNewsUserId === currentUser.id;
+  if (!force && sameUser && Date.now() - marketNewsLoadedAt < MARKET_NEWS_TTL) return;
+
+  marketNewsLoading = true;
+  marketNewsUserId = currentUser.id;
+  element.innerHTML = '<div class="market-news-loading">Chargement des actualités…</div>';
+  try {
+    const responses = await MoobankCore.mapWithConcurrency(marketNewsQueries(), 2, async query => {
+      const path = `/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=0&newsCount=3&listsCount=0&lang=fr-FR&region=FR`;
+      const data = await yfFetch(path);
+      return data?.news || data?.finance?.result?.[0]?.news || [];
+    });
+
+    const seen = new Set();
+    const articles = responses.flat().filter(article => {
+      const link = safeNewsUrl(article?.link);
+      const title = String(article?.title || '').trim();
+      if (!link || !title || seen.has(link)) return false;
+      seen.add(link);
+      article._safeLink = link;
+      return true;
+    }).sort((a, b) => Number(b.providerPublishTime || 0) - Number(a.providerPublishTime || 0)).slice(0, 3);
+
+    if (!articles.length) throw new Error('Aucune actualité disponible');
+    element.innerHTML = `<div class="market-news-list">${articles.map(article => {
+      const publisher = String(article.publisher || 'Yahoo Finance').trim();
+      const date = marketNewsDate(article.providerPublishTime);
+      return `<a class="market-news-item" href="${_esc(article._safeLink)}" target="_blank" rel="noopener noreferrer">
+        <span class="market-news-copy">
+          <span class="market-news-title">${_esc(article.title)}</span>
+          <span class="market-news-meta">${_esc(publisher)}${date ? ` · ${_esc(date)}` : ''}</span>
+        </span>
+        <span class="market-news-arrow" aria-hidden="true">↗</span>
+      </a>`;
+    }).join('')}</div>`;
+    marketNewsLoadedAt = Date.now();
+  } catch (error) {
+    console.warn('[Moobank] actualités indisponibles:', error.message);
+    element.innerHTML = '<div class="market-news-empty"><span>Actualités momentanément indisponibles.<button type="button" class="market-news-retry" onclick="loadMarketNews(true)">Réessayer</button></span></div>';
+  } finally {
+    marketNewsLoading = false;
+  }
 }
 
 // ─── TICKER INPUT ─────────────────────────────────────────────────────────────
@@ -1024,7 +1102,7 @@ async function addAccount() {
   try {
     await saveAccount(_newAcc);
   } catch(e) {
-    console.error('[Moumix] addAccount error:', e);
+    console.error('[Moobank] addAccount error:', e);
     accounts = accounts.filter(a => a.id !== _newAcc.id);
     if (_typeAdded) filteredTypes = filteredTypes.filter(t => t !== type);
     showToast('Erreur : impossible de sauvegarder le compte.', 'error');
@@ -1081,7 +1159,7 @@ async function confirmPosition() {
       }
 
       const tx = { id: crypto.randomUUID(), type: 'buy', symbol: selectedTicker.symbol, name: selectedTicker.name, qty, price: pru, accountName: accName, ts: Date.now() };
-      await MoumixCore.runCompensatedOperation({
+      await MoobankCore.runCompensatedOperation({
         commit: () => savePosition(target),
         audit: () => saveTransaction(tx),
         rollback: () => existing ? savePosition(previous) : deletePositionDB(target.id),
@@ -1115,7 +1193,7 @@ async function confirmPosition() {
         qty: parseFloat((existing.qty - qty).toFixed(8)),
       };
 
-      await MoumixCore.runCompensatedOperation({
+      await MoobankCore.runCompensatedOperation({
         commit: () => fullSell ? deletePositionDB(existing.id) : savePosition(target),
         audit: () => saveTransaction(tx),
         rollback: () => savePosition(previous),
@@ -1132,9 +1210,9 @@ async function confirmPosition() {
       successMessage = '✅ Vente enregistrée';
     }
   } catch(e) {
-    console.error('[Moumix] confirmPosition error:', e);
-    if (e.name === 'MoumixRollbackError') {
-      console.error('[Moumix] rétablissement impossible:', e.rollbackError);
+    console.error('[Moobank] confirmPosition error:', e);
+    if (e.name === 'MoobankRollbackError') {
+      console.error('[Moobank] rétablissement impossible:', e.rollbackError);
       showToast('Synchronisation incertaine : rechargez la page avant toute autre action.', 'error');
     } else {
       showToast(e.message && !/failed|network|fetch/i.test(e.message) ? e.message : 'Erreur de sauvegarde de la transaction.', 'error');
@@ -1155,10 +1233,10 @@ async function deletePosition(id) {
   const p = positions.find(p => p.id === id);
   if (!p) return;
   if (!confirm(`Supprimer la position ${p.symbol} (${p.qty} titre${p.qty > 1 ? 's' : ''}) ?`)) return;
-  try { await deletePositionDB(id); } catch(e) { console.error('[Moumix] deletePosition error:', e); showToast('Erreur : suppression impossible.', 'error'); return; }
+  try { await deletePositionDB(id); } catch(e) { console.error('[Moobank] deletePosition error:', e); showToast('Erreur : suppression impossible.', 'error'); return; }
   delete positionHistory[id];
   positions = positions.filter(p => p.id !== id);
-  renderPositions(); renderAllocation(); renderByAccount(); renderSummary();
+  renderPositions(); renderAllocation(); renderSummary();
   refreshProjectionIfActive();
 }
 async function deleteAccount(id) {
@@ -1176,7 +1254,7 @@ async function deleteAccount(id) {
   try {
     await deleteAccountDB(id);
   } catch(e) {
-    console.error('[Moumix] deleteAccount error:', e);
+    console.error('[Moobank] deleteAccount error:', e);
     showToast('Erreur : suppression impossible.', 'error');
     return;
   }
@@ -1184,7 +1262,7 @@ async function deleteAccount(id) {
   orphanPositions.forEach(p => { delete positionHistory[p.id]; });
   positions = positions.filter(p => p.accountId !== id);
   accounts = accounts.filter(a => a.id !== id);
-  renderPositions(); renderAccounts(); renderAllocation(); renderByAccount(); renderSummary(); renderFilterToggles();
+  renderPositions(); renderAccounts(); renderAllocation(); renderSummary(); renderFilterToggles();
   refreshProjectionIfActive();
 }
 function editLivretSolde(id) {
@@ -1207,7 +1285,7 @@ async function confirmLivretSolde(id) {
     try {
       await saveAccount(a);
     } catch(e) {
-      console.error('[Moumix] confirmLivretSolde error:', e);
+      console.error('[Moobank] confirmLivretSolde error:', e);
       a.solde = prevSolde;
       showToast('⚠️ Erreur sauvegarde', 'error');
       return;
@@ -1215,7 +1293,7 @@ async function confirmLivretSolde(id) {
     await snapshotPatrimoine(); // seulement si save OK
     const el = document.getElementById('livret-total-' + id);
     if (el) el.textContent = fmtEur(a.solde);
-    renderSummary(); renderByAccount(); renderAllocation();
+    renderSummary(); renderAllocation();
     refreshProjectionIfActive();
   }
   document.getElementById('livret-edit-' + id).classList.add('hidden');
@@ -1246,7 +1324,7 @@ async function refreshAllPrices() {
     const uniqueSymbols = [...new Set(positions.map(p => p.symbol))];
 
     // Fetch tous les prix en parallèle
-    const priceResults = await MoumixCore.mapWithConcurrency(uniqueSymbols, QUOTE_CONCURRENCY, async sym => {
+    const priceResults = await MoobankCore.mapWithConcurrency(uniqueSymbols, QUOTE_CONCURRENCY, async sym => {
       try {
         const data = await fetchQuote(sym);
         return [sym, data && data.priceEur != null ? data : null];
@@ -1329,14 +1407,14 @@ async function refreshAllPrices() {
     renderAll();
 
     // Historiques réels en arrière-plan
-    MoumixCore.mapWithConcurrency(uniqueSymbols, HISTORY_CONCURRENCY, async sym => {
+    MoobankCore.mapWithConcurrency(uniqueSymbols, HISTORY_CONCURRENCY, async sym => {
       const hist = await fetchHistory(sym);
         if (!hist || hist.length < 2) return;
         positions.filter(p => p.symbol === sym).forEach(p => { positionHistory[p.id] = hist; });
         renderPositions();
-    }).catch(error => console.warn('[Moumix] historiques indisponibles :', error.message));
+    }).catch(error => console.warn('[Moobank] historiques indisponibles :', error.message));
   } catch(e) {
-    console.error('[Moumix] refreshAllPrices error:', e);
+    console.error('[Moobank] refreshAllPrices error:', e);
     if (badge) badge.textContent = 'Échec de l’actualisation';
     showToast('Actualisation impossible : aucune donnée enregistrée n’a été supprimée.', 'error');
   } finally {
@@ -1562,7 +1640,7 @@ function allocationColor(type, index) {
 }
 
 window.setAllocationMode = function setAllocationMode(mode, button) {
-  if (!['type', 'account', 'asset'].includes(mode)) return;
+  if (!['type', 'asset'].includes(mode)) return;
   allocationMode = mode;
   document.querySelectorAll('.allocation-mode-btn').forEach(item => {
     const active = item === button;
@@ -1604,14 +1682,6 @@ function renderAllocation() {
       const count = activeAccounts.filter(account => account.type === group.type).length;
       group.detail = count + ' ' + (count > 1 ? 'comptes' : 'compte');
     });
-  } else if (allocationMode === 'account') {
-    activeAccounts.forEach(account => add(
-      account.id,
-      account.name,
-      simTypeLabel(account.type),
-      accountValue(account),
-      account.type
-    ));
   } else {
     activePositions.forEach(position => add(
       position.symbol,
@@ -1678,56 +1748,6 @@ function renderAllocation() {
     </div>`;
 }
 
-function renderByAccount() {
-  const element = document.getElementById('byAccountContent');
-  const badge = document.getElementById('accountCountBadge');
-  if (!element) return;
-
-  const activeAccounts = accounts
-    .filter(account => isTypeActive(account.type))
-    .map(account => ({ account, value: accountValue(account), performance: accountPerformance(account) }))
-    .sort((a, b) => b.value - a.value);
-  const total = activeAccounts.reduce((sum, item) => sum + item.value, 0);
-
-  if (badge) badge.textContent = activeAccounts.length + ' ' + (activeAccounts.length > 1 ? 'comptes' : 'compte');
-  if (!activeAccounts.length) {
-    element.innerHTML = '<div class="empty-state">Aucun compte dans les filtres actifs</div>';
-    return;
-  }
-
-  const rows = activeAccounts.slice(0, 5).map((item, index) => {
-    const account = item.account;
-    const typeColor = allocationColor(account.type, index);
-    const positionCount = positions.filter(position => position.accountId === account.id).length;
-    const meta = FIXED_ACCOUNT_TYPES.has(account.type)
-      ? simTypeLabel(account.type)
-      : `${simTypeLabel(account.type)} · ${positionCount} ${positionCount > 1 ? 'positions' : 'position'}`;
-    const perf = item.performance;
-    const perfLabel = perf
-      ? ` · <span class="${perf.value >= 0 ? 'gain-col' : 'loss-col'}">${perf.value >= 0 ? '+' : ''}${fmt(perf.pct, 1)} %</span>`
-      : '';
-    return `
-      <div class="pocket-row">
-        <div class="pocket-icon" style="background:${typeColor}18;color:${typeColor}">${_esc((account.type || 'A').slice(0, 2).toUpperCase())}</div>
-        <div class="pocket-copy">
-          <div class="pocket-name">${_esc(account.name)}</div>
-          <div class="pocket-meta">${_esc(meta)}${perfLabel}</div>
-        </div>
-        <div class="pocket-value">
-          ${fmtEur(item.value)}
-          <div class="pocket-share">${total > 0 ? fmt(item.value / total * 100, 1) + ' %' : '—'}</div>
-        </div>
-      </div>`;
-  }).join('');
-
-  const remaining = activeAccounts.length - 5;
-  element.innerHTML = `
-    <div class="pockets-list">${rows}</div>
-    <div style="display:flex;align-items:center;justify-content:${remaining > 0 ? 'space-between' : 'flex-end'};gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-      ${remaining > 0 ? `<span style="color:var(--muted);font-size:.68rem">+${remaining} autre${remaining > 1 ? 's' : ''}</span>` : ''}
-      <button type="button" class="card-link" onclick="switchTab('details',document.getElementById('nav-details'))">Ouvrir le portefeuille →</button>
-    </div>`;
-}
 function renderSummary() {
   const activeAccounts = accounts.filter(a => isTypeActive(a.type));
   const activeAccountIds = new Set(activeAccounts.map(a => a.id));
@@ -1797,7 +1817,7 @@ function refreshProjectionIfActive() {
   if (currentTabName === 'simulator') simUpdate();
 }
 function renderAll() {
-  renderAccounts(); renderPositions(); renderAllocation(); renderByAccount();
+  renderAccounts(); renderPositions(); renderAllocation();
   renderSummary(); renderFilterToggles(); renderChart();
   refreshProjectionIfActive();
 }
@@ -1806,8 +1826,8 @@ function renderAll() {
 function updateBrowserTitle() {
   const totalEl = document.getElementById('totalValue');
   document.title = totalEl && totalEl.textContent !== '—'
-    ? totalEl.textContent + ' · Moumix-Finance'
-    : 'Moumix-Finance — Patrimoine';
+    ? totalEl.textContent + ' · Moobank'
+    : 'Moobank — Patrimoine';
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
@@ -1855,7 +1875,7 @@ async function persistGoals(goal, isDelete = false) {
       });
     }
   } catch(e) {
-    console.error('[Moumix] persistGoals error:', e);
+    console.error('[Moobank] persistGoals error:', e);
     throw e; // propager aux appelants (saveGoal, deleteGoal) pour rollback
   }
 }
@@ -1896,7 +1916,7 @@ async function saveGoal() {
     goals.push(goal);
   }
   try { await persistGoals(goal); } catch(e) {
-    console.error('[Moumix] saveGoal error:', e);
+    console.error('[Moobank] saveGoal error:', e);
     if (editId && previousGoal) Object.assign(goal, previousGoal);
     else goals = goals.filter(g => g.id !== goal.id);
     showToast('Erreur : impossible de sauvegarder l’objectif.', 'error');
@@ -1926,7 +1946,7 @@ async function deleteGoal(id) {
   const _backup = [...goals];
   goals = goals.filter(g => g.id !== id);
   try { await persistGoals(goal, true); } catch(e) {
-    console.error('[Moumix] deleteGoal error:', e);
+    console.error('[Moobank] deleteGoal error:', e);
     goals = _backup;
     showToast('Erreur : impossible de supprimer l\'objectif.', 'error');
     return;
@@ -2024,14 +2044,14 @@ function isAllActive() {
 function toggleAll() {
   const types = [...new Set(accounts.map(a => a.type))];
   filteredTypes = isAllActive() ? [] : [...types];
-  renderFilterToggles(); renderSummary(); renderByAccount(); renderAllocation();
+  renderFilterToggles(); renderSummary(); renderAllocation();
 }
 
 function toggleType(type) {
   ensureFilterInit();
   if (filteredTypes.includes(type)) { filteredTypes = filteredTypes.filter(t => t !== type); }
   else { filteredTypes.push(type); }
-  renderFilterToggles(); renderSummary(); renderByAccount(); renderAllocation();
+  renderFilterToggles(); renderSummary(); renderAllocation();
 }
 
 function renderFilterToggles() {
@@ -2084,7 +2104,7 @@ async function snapshotPatrimoine() {
   }
   if (patrimoineHistory.length > 730) patrimoineHistory = patrimoineHistory.slice(-730);
   try { await savePatrimoineHistory(); } catch(e) {
-    console.error('[Moumix] snapshotPatrimoine error:', e);
+    console.error('[Moobank] snapshotPatrimoine error:', e);
     patrimoineHistory = _snapHistory;
     showToast('Cours actualisés, mais le point d’historique du jour n’a pas pu être sauvegardé.', 'error');
     return;
@@ -2458,7 +2478,7 @@ async function confirmAddPrel() {
   const _newPrel = { id: crypto.randomUUID(), name, amount, freq, cat, split };
   prelevements.push(_newPrel);
   try { await savePrelevement(_newPrel); } catch(e) {
-    console.error('[Moumix] confirmAddPrel error:', e);
+    console.error('[Moobank] confirmAddPrel error:', e);
     prelevements = prelevements.filter(p => p.id !== _newPrel.id);
     showToast('Erreur : impossible d\'ajouter.', 'error');
     return;
@@ -2469,7 +2489,7 @@ async function deletePrel(id) {
   const prelevement = prelevements.find(p => p.id === id);
   if (!prelevement) return;
   if (!confirm(`Supprimer le prélèvement « ${prelevement.name} » ?`)) return;
-  try { await deletePrelDB(id); } catch(e) { console.error('[Moumix] deletePrel error:', e); showToast('Erreur : suppression impossible.', 'error'); return; }
+  try { await deletePrelDB(id); } catch(e) { console.error('[Moobank] deletePrel error:', e); showToast('Erreur : suppression impossible.', 'error'); return; }
   prelevements = prelevements.filter(p => p.id !== id);
   renderPrelevements();
 }
@@ -2519,7 +2539,7 @@ async function confirmEditPrel(id) {
   try {
     await savePrelevement(p);
   } catch(e) {
-    console.error('[Moumix] confirmEditPrel error:', e);
+    console.error('[Moobank] confirmEditPrel error:', e);
     Object.assign(p, previous);
     showToast('Erreur modification : les anciennes valeurs sont conservées.', 'error');
   }
@@ -2700,6 +2720,8 @@ function clearLoadedSession() {
   simContributionPlan = {};
   simContributionPlanUserId = null;
   _simControlsSignature = null;
+  marketNewsLoadedAt = 0;
+  marketNewsUserId = null;
   positionHistory = {};
   clearInterval(_priceRefreshInterval); _priceRefreshInterval = null;
   clearInterval(_eurUsdInterval); _eurUsdInterval = null;
@@ -2766,6 +2788,7 @@ function initApp(user) {
       renderPrelevements();
       renderGoals();
       fetchEurUsd();
+      loadMarketNews();
       _eurUsdInterval = setInterval(() => { if (_appReadyTask === task) fetchEurUsd(); }, 5 * 60 * 1000);
       if (positions.length > 0) {
         refreshAllPrices();
@@ -2777,7 +2800,7 @@ function initApp(user) {
     } catch (error) {
       if (_appInitTask !== task || task.controller.signal.aborted || error.name === 'AbortError') return false;
       // Pas de jeton, mot de passe ou contenu des comptes dans les diagnostics.
-      console.error('[Moumix] loadAllData error:', error.kind || 'unexpected', error.queryErrors?.length ? error.queryErrors : error.message);
+      console.error('[Moobank] loadAllData error:', error.kind || 'unexpected', error.queryErrors?.length ? error.queryErrors : error.message);
       clearLoadedSession();
       _failedLoad = { userId: user.id, email: user.email || '', kind: error.kind || 'unexpected' };
       if (!document.getElementById('auth-email').value) document.getElementById('auth-email').value = user.email || '';
@@ -2905,9 +2928,10 @@ let simDataOpti = [];
 
 // Les hypothèses et les formules vivent dans trajectory-core.js. L'interface
 // ne conserve ici que les réglages de l'utilisateur et leur rendu.
-const SIM_TYPE_LABELS = MoumixTrajectory.TYPE_LABELS;
-const SIM_TYPE_ORDER = MoumixTrajectory.TYPE_ORDER;
-const SIM_PLAN_STORAGE_PREFIX = 'moumix-finance:trajectory-plan:';
+const SIM_TYPE_LABELS = MoobankTrajectory.TYPE_LABELS;
+const SIM_TYPE_ORDER = MoobankTrajectory.TYPE_ORDER;
+const SIM_PLAN_STORAGE_PREFIX = 'moobank:trajectory-plan:';
+const SIM_PLAN_LEGACY_STORAGE_PREFIX = 'moumix-finance:trajectory-plan:';
 let simRateOverrides = {};
 let simContributionPlan = {};
 let simContributionPlanUserId = null;
@@ -2921,7 +2945,7 @@ function simDomKey(value) {
   return Array.from(String(value || 'Autre')).map(char => char.codePointAt(0).toString(36)).join('-');
 }
 function simAssumption(type) {
-  return MoumixTrajectory.assumptionFor(type, simRateOverrides);
+  return MoobankTrajectory.assumptionFor(type, simRateOverrides);
 }
 
 function simEnsureContributionPlan() {
@@ -2931,14 +2955,23 @@ function simEnsureContributionPlan() {
   simContributionPlan = {};
   if (!userId) return;
   try {
-    const parsed = JSON.parse(localStorage.getItem(SIM_PLAN_STORAGE_PREFIX + userId) || '{}');
+    const currentKey = SIM_PLAN_STORAGE_PREFIX + userId;
+    const legacyKey = SIM_PLAN_LEGACY_STORAGE_PREFIX + userId;
+    let stored = localStorage.getItem(currentKey);
+    if (stored === null) {
+      stored = localStorage.getItem(legacyKey);
+      // Copie non destructive : l'ancien réglage reste disponible si une
+      // ancienne version de l'app est encore ouverte pendant le renommage.
+      if (stored !== null) localStorage.setItem(currentKey, stored);
+    }
+    const parsed = JSON.parse(stored || '{}');
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
     Object.entries(parsed).forEach(([accountId, rawAmount]) => {
       const amount = Number(rawAmount);
       if (Number.isFinite(amount) && amount > 0) simContributionPlan[accountId] = Math.min(100000, amount);
     });
   } catch (error) {
-    console.warn('[Moumix] plan mensuel local illisible, valeurs ignorées');
+    console.warn('[Moobank] plan mensuel local illisible, valeurs ignorées');
   }
 }
 
@@ -2947,7 +2980,7 @@ function simPersistContributionPlan() {
   try {
     localStorage.setItem(SIM_PLAN_STORAGE_PREFIX + simContributionPlanUserId, JSON.stringify(simContributionPlan));
   } catch (error) {
-    console.warn('[Moumix] plan mensuel non mémorisé sur cet appareil');
+    console.warn('[Moobank] plan mensuel non mémorisé sur cet appareil');
   }
 }
 
@@ -2998,7 +3031,10 @@ function simPruneContributionPlan() {
 }
 
 window.addEventListener('storage', event => {
-  if (!currentUser?.id || event.key !== SIM_PLAN_STORAGE_PREFIX + currentUser.id) return;
+  if (!currentUser?.id) return;
+  const currentKey = SIM_PLAN_STORAGE_PREFIX + currentUser.id;
+  const legacyKey = SIM_PLAN_LEGACY_STORAGE_PREFIX + currentUser.id;
+  if (![currentKey, legacyKey].includes(event.key)) return;
   simContributionPlanUserId = null;
   _simControlsSignature = null;
   if (currentTabName === 'simulator') simUpdate();
@@ -3146,17 +3182,17 @@ function simResetRates() {
 
 function simMonthlyContributionsByType(buckets) {
   simEnsureContributionPlan();
-  const grouped = MoumixCore.groupMonthlyContributions(accounts, simContributionPlan);
+  const grouped = MoobankCore.groupMonthlyContributions(accounts, simContributionPlan);
   const amounts = new Map(buckets.map(bucket => [bucket.type, grouped[bucket.type] || 0]));
   return amounts;
 }
 
 function simWeightedRatePct(buckets, monthlyByType, years, scenario) {
-  return MoumixTrajectory.weightedRatePct(buckets, monthlyByType, years, scenario, simRateOverrides);
+  return MoobankTrajectory.weightedRatePct(buckets, monthlyByType, years, scenario, simRateOverrides);
 }
 
 function simComputePortfolio(buckets, monthlyByType, years, scenario) {
-  return MoumixTrajectory.computePortfolio(buckets, monthlyByType, years, scenario, simRateOverrides);
+  return MoobankTrajectory.computePortfolio(buckets, monthlyByType, years, scenario, simRateOverrides);
 }
 
 let _simUpdateTimer = null;
@@ -3245,7 +3281,7 @@ function simUpdate() {
   // Jauge composition (réaliste)
   const { final, totalInvested, totalInterest } = resReal;
   const totalMonthly = totalInvested - initial;
-  const realToday = MoumixTrajectory.presentValue(final, inflation, years);
+  const realToday = MoobankTrajectory.presentValue(final, inflation, years);
   const realTodayEl = document.getElementById('sim-res-real-today');
   if (realTodayEl) realTodayEl.textContent = `≈ ${simFmt(realToday)} en euros d’aujourd’hui`;
   const formulaSummary = document.getElementById('sim-formula-summary');
@@ -3590,15 +3626,15 @@ async function confirmEditPosition() {
   const accName = getAccountName(p.accountId);
   const tx = { id: crypto.randomUUID(), type: 'edit', symbol: p.symbol, name: p.name, qty: target.qty, price: target.price, oldQty, oldPrice, accountName: accName, ts: Date.now() };
   try {
-    await MoumixCore.runCompensatedOperation({
+    await MoobankCore.runCompensatedOperation({
       commit: () => savePosition(target),
       audit: () => saveTransaction(tx),
       rollback: () => savePosition(previous),
     });
   } catch(e) {
-    console.error('[Moumix] confirmEditPosition error:', e);
-    if (e.name === 'MoumixRollbackError') {
-      console.error('[Moumix] rétablissement modification impossible:', e.rollbackError);
+    console.error('[Moobank] confirmEditPosition error:', e);
+    if (e.name === 'MoobankRollbackError') {
+      console.error('[Moobank] rétablissement modification impossible:', e.rollbackError);
       showToast('Synchronisation incertaine : rechargez la page avant toute autre action.', 'error');
     } else {
       showToast('Erreur sauvegarde modification.', 'error');
@@ -3610,7 +3646,7 @@ async function confirmEditPosition() {
   transactions.unshift(tx); if (transactions.length > 500) transactions.length = 500;
   btn.disabled = false;
   closeEditPosition();
-  renderPositions(); renderAllocation(); renderByAccount(); renderSummary();
+  renderPositions(); renderAllocation(); renderSummary();
   refreshProjectionIfActive();
   showToast('✅ Position mise à jour', 'success');
 }
@@ -3618,7 +3654,7 @@ async function confirmEditPosition() {
 // ─── PWA ────────────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => {
-    const appVersion = document.querySelector('meta[name="moumix-version"]')?.content || 'current';
+    const appVersion = document.querySelector('meta[name="moobank-version"]')?.content || 'current';
     let reloadingForUpdate = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (reloadingForUpdate) return;
@@ -3655,7 +3691,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       });
       window.addEventListener('pageshow', checkForUpdate);
       setInterval(checkForUpdate, 15 * 60 * 1000);
-    }).catch(error => console.warn('[Moumix] Service worker indisponible:', error));
+    }).catch(error => console.warn('[Moobank] Service worker indisponible:', error));
   });
 }
 
@@ -3665,7 +3701,7 @@ function showAppUpdatePrompt(onUpdate) {
   prompt.id = 'appUpdatePrompt';
   prompt.className = 'app-update-prompt';
   prompt.setAttribute('role', 'status');
-  prompt.innerHTML = `<span>Une nouvelle version de Moumix-Finance est prête.</span>
+  prompt.innerHTML = `<span>Une nouvelle version de Moobank est prête.</span>
     <button type="button" class="btn btn-sm btn-primary">Mettre à jour</button>`;
   prompt.querySelector('button').addEventListener('click', () => {
     prompt.querySelector('button').disabled = true;

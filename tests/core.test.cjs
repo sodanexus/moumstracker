@@ -82,7 +82,7 @@ test('un échec de compensation est distingué explicitement', async () => {
       audit: async () => { throw new Error('historique refusé'); },
       rollback: async () => { throw new Error('retour refusé'); },
     }),
-    error => error.name === 'MoumixRollbackError' && error.operationError.message === 'historique refusé'
+    error => error.name === 'MoobankRollbackError' && error.operationError.message === 'historique refusé'
   );
 });
 

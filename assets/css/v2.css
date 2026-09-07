@@ -1,4 +1,4 @@
-/* Moumix Finance 2 — quiet wealth dashboard
+/* Moobank 2 — quiet wealth dashboard
    app.css conserve les composants fonctionnels historiques ; ce fichier porte
    la nouvelle identité et la nouvelle hiérarchie d'interface. */
 
@@ -78,8 +78,9 @@ body::before {
   place-items: center;
   width: 44px;
   height: 44px;
-  border-radius: 14px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, .24);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 .brand-mark img { display: block; width: 44px; height: 44px; }
 .eurusd-widget {
@@ -341,25 +342,39 @@ body::before {
 .allocation-numbers { text-align: right; }
 .allocation-amount { font-family: 'DM Mono', monospace; font-size: .73rem; }
 .allocation-pct { margin-top: 1px; color: var(--muted); font-size: .64rem; }
-
-.count-badge { padding: 4px 8px; border-radius: 8px; background: var(--surface2); color: var(--muted); font-size: .66rem; font-weight: 650; }
-.pockets-list { display: flex; flex-direction: column; gap: 3px; }
-.pocket-row {
+.market-news-card .card-body { min-height: 245px; padding-top: 9px; padding-bottom: 9px; }
+.market-news-list { display: flex; flex-direction: column; }
+.market-news-item {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
-  gap: 11px;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
   align-items: center;
-  min-height: 53px;
-  padding: 8px;
-  border-radius: 12px;
+  min-height: 70px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(48, 68, 76, .58);
+  color: inherit;
+  text-decoration: none;
 }
-.pocket-row:hover { background: rgba(255, 255, 255, .025); }
-.pocket-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; font-size: .7rem; font-weight: 800; }
-.pocket-copy { min-width: 0; }
-.pocket-name { overflow: hidden; font-size: .79rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.pocket-meta { margin-top: 2px; color: var(--muted); font-size: .65rem; }
-.pocket-value { font-family: 'DM Mono', monospace; font-size: .76rem; text-align: right; }
-.pocket-share { margin-top: 2px; color: var(--muted); font: .62rem 'Inter', sans-serif; }
+.market-news-item:last-child { border-bottom: 0; }
+.market-news-item:hover .market-news-title { color: var(--accent); }
+.market-news-copy { min-width: 0; }
+.market-news-title {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text);
+  font-size: .76rem;
+  font-weight: 620;
+  line-height: 1.35;
+  transition: color .16s ease;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.market-news-meta { margin-top: 5px; color: var(--muted); font-size: .64rem; }
+.market-news-arrow { color: var(--muted-soft); font-size: .9rem; }
+.market-news-loading,
+.market-news-empty { display: grid; place-items: center; min-height: 220px; color: var(--muted); font-size: .72rem; text-align: center; }
+.market-news-retry { margin-left: 4px; border: 0; background: transparent; color: var(--accent); font: inherit; cursor: pointer; }
+
 .card-link {
   border: 0;
   background: transparent;
@@ -511,8 +526,8 @@ td { padding-top: 12px; padding-bottom: 12px; }
   font-size: .7rem;
   line-height: 1.5;
 }
-.trajectory-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.trajectory-main-card { grid-column: 1 / -1; }
+.trajectory-results { display: block; align-self: start; }
+.trajectory-main-card { width: 100%; }
 .trajectory-main-card .sim-scenario-grid {
   gap: 8px !important;
   border-radius: 0 !important;
@@ -557,8 +572,8 @@ td { padding-top: 12px; padding-bottom: 12px; }
 .trajectory-secondary-label { color: var(--muted); font-size: .7rem; }
 .trajectory-secondary-total { margin-top: 6px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; font-weight: 700; }
 .trajectory-secondary-rate { margin-top: 3px; color: var(--muted); font-size: .67rem; }
-.trajectory-composition { grid-column: 1 / -1; padding: 18px; }
-.trajectory-composition > .card-body { padding: 0 !important; }
+.trajectory-composition-inline { margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--border); }
+.trajectory-composition-label { color: var(--muted); font-size: .68rem; font-weight: 600; }
 .trajectory-composition-bar { display: flex; height: 9px; margin: 12px 0 10px; overflow: hidden; border-radius: 8px; background: var(--border); }
 .trajectory-legend { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .trajectory-legend-item { min-width: 0; color: var(--muted); font-size: .64rem; }
@@ -581,7 +596,7 @@ td { padding-top: 12px; padding-bottom: 12px; }
 }
 .login-box { max-width: 410px; padding: 38px; border-color: var(--border); border-radius: 24px; background: rgba(16, 24, 28, .94); box-shadow: var(--shadow); }
 .login-brand { display: flex; align-items: center; gap: 13px; margin-bottom: 30px; }
-.login-brand img { width: 54px; height: 54px; }
+.login-brand img { width: 54px; height: 54px; background: transparent; }
 .login-brand-name { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.18rem; font-weight: 750; letter-spacing: -.03em; }
 .login-brand-sub { margin-top: 2px; color: var(--muted); font-size: .72rem; }
 label { color: var(--muted); font-size: .67rem; font-weight: 600; }
@@ -673,7 +688,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   .page-heading { margin-bottom: 18px; }
   .trajectory-source { align-items: flex-start; flex-direction: column; padding: 20px; }
   .sim-source-types { justify-content: flex-start; }
-  .trajectory-results { grid-template-columns: 1fr 1fr; }
   .trajectory-main-result { padding: 20px; }
   .trajectory-result-total { font-size: 2.2rem; }
   .trajectory-legend { grid-template-columns: 1fr; }
@@ -691,8 +705,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   .wealth-metric-value { font-size: .84rem; }
   .allocation-mode-btn { padding-inline: 8px; }
   .accounts-grid { grid-template-columns: 1fr; }
-  .trajectory-results { grid-template-columns: 1fr; }
-  .trajectory-main-result, .trajectory-composition { grid-column: auto; }
+  .trajectory-main-result { grid-column: auto; }
   .trajectory-years { grid-template-columns: repeat(4, 1fr); }
   .sim-plan-heading, .sim-plan-footer { align-items: flex-start; }
   .sim-plan-footer { flex-direction: column; }

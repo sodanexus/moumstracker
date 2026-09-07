@@ -1,5 +1,5 @@
 -- ============================================================================
--- Moumix-Finance — schéma complet pour une NOUVELLE installation Supabase
+-- Moobank — schéma complet pour une NOUVELLE installation Supabase
 -- ============================================================================
 -- Ce fichier n'est pas une migration et n'est jamais exécuté par l'application.
 -- Ne l'exécutez pas aveuglément sur une base existante : la mise à jour livrée

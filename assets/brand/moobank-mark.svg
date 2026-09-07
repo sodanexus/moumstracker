@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="9 9 46 43" role="img" aria-labelledby="title desc">
+  <title id="title">Moobank</title>
+  <desc id="desc">Un M ouvert formé par deux poches imbriquées.</desc>
+  <!-- Le filet sombre conserve la lisibilite sur les fonds clairs sans
+       recreer de tuile ou de fond autour du symbole. -->
+  <path d="M15 43V23.5c0-3.6 2.9-6.5 6.5-6.5h1.8L32 28.4 40.7 17h1.8c3.6 0 6.5 2.9 6.5 6.5V43"
+        fill="none" stroke="#10181c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M15 43V23.5c0-3.6 2.9-6.5 6.5-6.5h1.8L32 28.4 40.7 17h1.8c3.6 0 6.5 2.9 6.5 6.5V43"
+        fill="none" stroke="#e9fff8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M15 43h34" fill="none" stroke="#55e6b1" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="49" cy="17" r="4" fill="#65a8ff"/>
+</svg>

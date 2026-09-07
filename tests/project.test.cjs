@@ -32,24 +32,44 @@ test('la V2 retire les éléments de trading et la mascotte', () => {
   assert.match(html, /USD\/EUR/);
 });
 
-test('la synthèse propose une allocation lisible et une trajectoire simple', () => {
+test('la synthèse propose une allocation lisible sans vue Comptes redondante', () => {
   const html = read('index.html');
   const app = read('assets/js/app.js');
-  for (const label of ['Synthèse', 'Portefeuille', 'Trajectoire', 'Poches', 'Comptes', 'Actifs']) {
+  for (const label of ['Synthèse', 'Portefeuille', 'Trajectoire']) {
     assert.match(html, new RegExp(label));
   }
+  const allocationControls = html.match(/<div class="allocation-mode"[\s\S]*?<\/div>/)?.[0] || '';
+  assert.match(allocationControls, />Poches</);
+  assert.match(allocationControls, />Actifs</);
+  assert.doesNotMatch(allocationControls, />Comptes</);
   assert.match(app, /allocationMode = 'type'/);
-  assert.match(app, /setAllocationMode/);
+  assert.match(app, /\['type', 'asset'\]\.includes\(mode\)/);
+  assert.doesNotMatch(app, /allocationMode === 'account'/);
   assert.match(app, /setTrajectoryYears/);
 });
 
-test('la nouvelle identité est utilisée par le site et la PWA', () => {
+test('la nouvelle identité transparente est utilisée par le site et la PWA', () => {
   const html = read('index.html');
   const worker = read('sw.js');
-  assert.match(html, /assets\/brand\/moumix-mark\.svg/);
-  assert.match(worker, /assets\/brand\/moumix-mark\.svg/);
+  const mark = read('assets/brand/moobank-mark.svg');
+  const manifest = JSON.parse(read('manifest.json'));
+  assert.match(html, /assets\/brand\/moobank-mark\.svg/);
+  assert.match(worker, /assets\/brand\/moobank-mark\.svg/);
   assert.match(worker, /assets\/css\/v2\.css/);
-  assert.equal(JSON.parse(read('version.json')).version, '2.2.0');
+  assert.doesNotMatch(mark, /<rect\b/i);
+  assert.equal(manifest.name, 'Moobank — Patrimoine');
+  assert.equal(JSON.parse(read('version.json')).version, '2.3.0');
+});
+
+test('la synthèse remplace le doublon des poches par trois actualités non bloquantes', () => {
+  const html = read('index.html');
+  const app = read('assets/js/app.js');
+  assert.match(html, /class="card market-news-card"/);
+  assert.match(html, /id="marketNewsContent"/);
+  assert.doesNotMatch(html, /id="byAccountContent"|id="accountCountBadge"/);
+  assert.match(app, /newsCount=3/);
+  assert.match(app, /slice\(0, 3\)/);
+  assert.match(app, /actualités indisponibles/);
 });
 
 test('la navigation et les actions suivent la nouvelle hiérarchie responsive', () => {
@@ -59,6 +79,7 @@ test('la navigation et les actions suivent la nouvelle hiérarchie responsive', 
   assert.match(html, /header-primary[\s\S]*brand-mark[\s\S]*navigation-bar/);
   assert.match(html, /app-menu-toggle/);
   assert.match(css, /@media \(max-width: 820px\)[\s\S]*\.navigation-bar \{[\s\S]*position: fixed/);
+  assert.match(css, /padding-bottom: max\(92px, calc\(76px \+ var\(--safe-bottom\)\)\)/);
   assert.doesNotMatch(app, /mobileActionsMedia\.matches/);
   assert.doesNotMatch(html, /id="openAccountBtn"|id="openPositionBtn"|id="userMenu"/);
 });
@@ -70,9 +91,20 @@ test('la trajectoire explicite inflation, versements et rendement', () => {
   assert.match(html, /id="sim-inflation"/);
   assert.match(html, /id="sim-res-real-today"/);
   assert.match(html, /id="sim-formula-summary"/);
-  assert.match(app, /MoumixTrajectory\.presentValue/);
+  assert.match(app, /MoobankTrajectory\.presentValue/);
   assert.match(trajectory, /Math\.pow\(1 \+ inflation, duration\)/);
   assert.match(app, /futurs versements/);
+});
+
+test('la composition du résultat est fusionnée dans la carte de trajectoire', () => {
+  const html = read('index.html');
+  const css = read('assets/css/v2.css');
+  const cardIndex = html.indexOf('trajectory-main-card');
+  const compositionIndex = html.indexOf('trajectory-composition-inline');
+  const chartIndex = html.indexOf('trajectory-chart');
+  assert.ok(cardIndex >= 0 && compositionIndex > cardIndex && chartIndex > compositionIndex);
+  assert.doesNotMatch(html, /class="card trajectory-composition(?:"|\s)/);
+  assert.match(css, /\.trajectory-results \{ display: block; align-self: start; \}/);
 });
 
 test('le plan mensuel est modifiable par compte et isolé localement par utilisateur', () => {
@@ -82,7 +114,9 @@ test('le plan mensuel est modifiable par compte et isolé localement par utilisa
   assert.match(html, /id="sim-plan-total"/);
   assert.doesNotMatch(html, /id="sim-monthly"|id="sim-contribution-target"/);
   assert.match(app, /SIM_PLAN_STORAGE_PREFIX \+ userId/);
-  assert.match(app, /MoumixCore\.groupMonthlyContributions/);
+  assert.match(app, /SIM_PLAN_LEGACY_STORAGE_PREFIX \+ userId/);
+  assert.match(app, /localStorage\.setItem\(currentKey, stored\)/);
+  assert.match(app, /MoobankCore\.groupMonthlyContributions/);
   assert.match(app, /trajectoryPlan: \{ \.\.\.simContributionPlan \}/);
 });
 
@@ -98,11 +132,12 @@ test('l’ancien plan privé est absent du runtime et son nettoyage reste option
   }
 });
 
-test('le nom public de l’application est Moumix-Finance', () => {
+test('le nom public de l’application est Moobank', () => {
   const html = read('index.html');
   const manifest = JSON.parse(read('manifest.json'));
-  assert.match(html, /<title>Moumix-Finance/);
-  assert.equal(manifest.short_name, 'Moumix-Finance');
+  assert.match(html, /<title>Moobank/);
+  assert.equal(manifest.short_name, 'Moobank');
+  assert.doesNotMatch(html, /Moumix/i);
 });
 
 test('les identifiants HTML sont uniques', () => {
@@ -126,7 +161,7 @@ test('les cotations frontend sont limitées, dédupliquées et mises en cache', 
   assert.match(app, /QUOTE_CONCURRENCY = 3/);
   assert.match(app, /yfResponseCache/);
   assert.match(app, /yfInFlight/);
-  assert.match(app, /MoumixCore\.mapWithConcurrency\(uniqueSymbols, QUOTE_CONCURRENCY/);
+  assert.match(app, /MoobankCore\.mapWithConcurrency\(uniqueSymbols, QUOTE_CONCURRENCY/);
 });
 
 test('le snapshot limite les requêtes et mutualise les cours entre utilisateurs', () => {
@@ -153,8 +188,9 @@ test('le service worker couvre les fichiers séparés et attend la validation ut
 test('la safe area mobile appartient à l’en-tête et la navigation reste en bas', () => {
   const css = read('assets/css/v2.css');
   assert.match(css, /--safe-top: env\(safe-area-inset-top, 0px\)/);
+  assert.match(css, /--safe-bottom: env\(safe-area-inset-bottom, 0px\)/);
   assert.match(css, /\.app > header \{[\s\S]*?top: 0;[\s\S]*?padding: calc\(var\(--safe-top\) \+ 7px\)/);
-  assert.match(css, /\.navigation-bar \{[\s\S]*?position: fixed;[\s\S]*?inset: auto 0 0 0/);
+  assert.match(css, /@media \(max-width: 820px\)[\s\S]*?\.navigation-bar \{[\s\S]*?position: fixed;[\s\S]*?inset: auto 0 0 0;[\s\S]*?var\(--safe-bottom\)/);
 });
 
 test('les versions publiques et les ressources versionnées sont cohérentes', () => {
@@ -163,18 +199,24 @@ test('les versions publiques et les ressources versionnées sont cohérentes', (
   const version = JSON.parse(read('version.json')).version;
   const pkg = JSON.parse(read('package.json'));
   const lock = JSON.parse(read('package-lock.json'));
-  assert.equal(version, '2.2.0');
+  assert.equal(version, '2.3.0');
   assert.equal(pkg.version, version);
   assert.equal(lock.version, version);
   assert.equal(lock.packages[''].version, version);
-  assert.match(html, new RegExp(`moumix-version" content="${version.replaceAll('.', '\\.')}`));
+  assert.match(html, new RegExp(`moobank-version" content="${version.replaceAll('.', '\\.')}`));
   assert.match(html, new RegExp(`assets/css/v2\\.css\\?v=${version.replaceAll('.', '\\.')}`));
   assert.match(worker, new RegExp(`APP_VERSION = '${version.replaceAll('.', '\\.')}'`));
 });
 
+test('le workflow de snapshot porte le nom Moobank', () => {
+  const workflow = read('.github/workflows/daily-snapshot.yml');
+  assert.match(workflow, /^name: Moobank — snapshot quotidien/m);
+  assert.match(workflow, /group: moobank-daily-patrimoine-snapshot/);
+});
+
 test('achat, vente et modification partagent la même compensation technique', () => {
   const app = read('assets/js/app.js');
-  assert.ok((app.match(/MoumixCore\.runCompensatedOperation/g) || []).length >= 3);
+  assert.ok((app.match(/MoobankCore\.runCompensatedOperation/g) || []).length >= 3);
   assert.match(app, /from\('transactions'\)\.upsert\(row, \{ onConflict: 'id' \}\)/);
   assert.doesNotMatch(app, /from\('transactions'\)\.insert\(row\)/);
 });

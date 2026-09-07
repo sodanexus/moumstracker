@@ -3,22 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Moumix-Finance — Patrimoine</title>
-<meta name="description" content="Moumix-Finance, le tableau de bord privé pour comprendre, organiser et suivre son patrimoine.">
-<meta name="moumix-version" content="2.2.0">
+<title>Moobank — Patrimoine</title>
+<meta name="description" content="Moobank, le tableau de bord privé pour comprendre, organiser et suivre son patrimoine.">
+<meta name="moobank-version" content="2.3.0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Moumix-Finance">
+<meta name="apple-mobile-web-app-title" content="Moobank">
 <meta name="theme-color" content="#091013">
 <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" type="image/svg+xml" href="./assets/brand/moumix-mark.svg">
-<link rel="manifest" href="manifest.json?v=2.2.0">
+<link rel="icon" type="image/svg+xml" href="./assets/brand/moobank-mark.svg">
+<link rel="manifest" href="manifest.json?v=2.3.0">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=2.2.0">
-<link rel="stylesheet" href="./assets/css/v2.css?v=2.2.0">
+<link rel="stylesheet" href="./assets/css/app.css?v=2.3.0">
+<link rel="stylesheet" href="./assets/css/v2.css?v=2.3.0">
 </head>
 <body>
   <!-- OFFLINE BANNER -->
@@ -34,9 +34,9 @@
 <div class="login-screen hidden" id="loginScreen">
   <div class="login-box">
     <div class="login-brand">
-      <img src="./assets/brand/moumix-mark.svg" width="54" height="54" alt="">
+      <img src="./assets/brand/moobank-mark.svg" width="54" height="54" alt="">
       <div>
-        <div class="login-brand-name">Moumix-Finance</div>
+        <div class="login-brand-name">Moobank</div>
         <div class="login-brand-sub">Votre patrimoine, au même endroit.</div>
       </div>
     </div>
@@ -101,8 +101,8 @@
 <div class="app hidden" id="mainApp">
   <header class="app-header">
     <div class="header-primary">
-      <div class="brand-mark" aria-label="Moumix-Finance" title="Moumix-Finance">
-        <img src="./assets/brand/moumix-mark.svg" width="44" height="44" alt="">
+      <div class="brand-mark" aria-label="Moobank" title="Moobank">
+        <img src="./assets/brand/moobank-mark.svg" width="44" height="44" alt="">
       </div>
 
       <nav class="navigation-bar" aria-label="Navigation principale">
@@ -199,21 +199,21 @@
         </div>
         <div class="allocation-mode" role="group" aria-label="Regrouper l'allocation">
           <button type="button" class="allocation-mode-btn active" aria-pressed="true" onclick="setAllocationMode('type',this)">Poches</button>
-          <button type="button" class="allocation-mode-btn" aria-pressed="false" onclick="setAllocationMode('account',this)">Comptes</button>
           <button type="button" class="allocation-mode-btn" aria-pressed="false" onclick="setAllocationMode('asset',this)">Actifs</button>
         </div>
       </div>
       <div class="card-body" id="allocContent"><div class="empty-state">Ajoutez des positions</div></div>
     </div>
-    <div class="card">
+    <div class="card market-news-card">
       <div class="card-header">
         <div>
-          <div class="card-title">Mes poches</div>
-          <div class="card-subtitle">Comptes et établissements suivis</div>
+          <div class="card-title">À suivre</div>
+          <div class="card-subtitle">Actualités liées à vos principaux actifs</div>
         </div>
-        <span id="accountCountBadge" class="count-badge"></span>
       </div>
-      <div class="card-body" id="byAccountContent"><div class="empty-state">En attente de données…</div></div>
+      <div class="card-body" id="marketNewsContent" aria-live="polite">
+        <div class="market-news-loading">Chargement des actualités…</div>
+      </div>
     </div>
   </div>
 
@@ -412,7 +412,8 @@
 
           <div class="card trajectory-main-card">
             <div class="card-body" style="padding:16px 20px">
-              <div class="card-subtitle" style="margin-bottom:14px">Valeur estimée au terme de l’horizon, en euros futurs</div>
+              <div class="card-title">À l’horizon choisi</div>
+              <div class="card-subtitle" style="margin-bottom:14px">Valeur estimée en euros futurs</div>
               <div class="sim-scenario-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-radius:10px;overflow:hidden">
 
                 <!-- Prudent -->
@@ -476,24 +477,20 @@
 
               </div>
               <p class="trajectory-formula-summary" id="sim-formula-summary" aria-live="polite">La projection se mettra à jour avec vos réglages.</p>
-            </div>
-          </div>
-
-          <!-- Jauge visuelle (réaliste) -->
-          <div class="card trajectory-composition">
-            <div class="card-body" style="padding:16px 20px">
-              <div class="card-title">Ce qui construit le résultat</div>
-              <div class="trajectory-composition-bar">
-                <div id="sim-bar-initial" style="background:#0070f3;transition:width 0.4s ease;height:100%"></div>
-                <div id="sim-bar-monthly" style="background:#7c5cfc;transition:width 0.4s ease;height:100%"></div>
-                <div id="sim-bar-interest" style="background:var(--accent);transition:width 0.4s ease;height:100%;flex:1"></div>
+              <div class="trajectory-composition-inline" aria-label="Composition du scénario central">
+                <div class="trajectory-composition-label">Composition du scénario central</div>
+                <div class="trajectory-composition-bar">
+                  <div id="sim-bar-initial" style="background:#0070f3;transition:width 0.4s ease;height:100%"></div>
+                  <div id="sim-bar-monthly" style="background:#7c5cfc;transition:width 0.4s ease;height:100%"></div>
+                  <div id="sim-bar-interest" style="background:var(--accent);transition:width 0.4s ease;height:100%;flex:1"></div>
+                </div>
+                <div class="trajectory-legend">
+                  <div class="trajectory-legend-item">Patrimoine actuel<strong id="sim-legend-initial">—</strong></div>
+                  <div class="trajectory-legend-item">Futurs versements<strong id="sim-legend-monthly">—</strong></div>
+                  <div class="trajectory-legend-item">Rendements estimés<strong id="sim-legend-interest">—</strong></div>
+                </div>
+                <div class="sim-breakdown" id="sim-projected-breakdown" aria-label="Projection réaliste par catégorie"></div>
               </div>
-              <div class="trajectory-legend">
-                <div class="trajectory-legend-item">Patrimoine actuel<strong id="sim-legend-initial">—</strong></div>
-                <div class="trajectory-legend-item">Futurs versements<strong id="sim-legend-monthly">—</strong></div>
-                <div class="trajectory-legend-item">Rendements estimés<strong id="sim-legend-interest">—</strong></div>
-              </div>
-              <div class="sim-breakdown" id="sim-projected-breakdown" aria-label="Projection réaliste par catégorie"></div>
             </div>
           </div>
 
@@ -546,9 +543,9 @@
 
   </div><!-- end tab-simulator -->
 
-<script src="./assets/js/core.js?v=2.2.0"></script>
-<script src="./assets/js/trajectory-core.js?v=2.2.0"></script>
-<script src="./assets/js/app.js?v=2.2.0"></script>
+<script src="./assets/js/core.js?v=2.3.0"></script>
+<script src="./assets/js/trajectory-core.js?v=2.3.0"></script>
+<script src="./assets/js/app.js?v=2.3.0"></script>
 
 </div><!-- end .app -->
 
@@ -756,6 +753,6 @@
   </div>
 </div>
 
-<script src="./assets/js/history-import.js?v=2.2.0"></script>
+<script src="./assets/js/history-import.js?v=2.3.0"></script>
 </body>
 </html>

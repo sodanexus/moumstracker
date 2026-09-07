@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="./assets/brand/moumix-mark.svg" width="88" height="88" alt="Logo Moumix-Finance">
+<img src="./assets/brand/moobank-mark.svg" width="88" height="88" alt="Logo Moobank">
 
-# Moumix-Finance
+# Moobank
 ### Le patrimoine, au même endroit
 
 <p><em>Comprendre ce que j’ai. Voir où il se trouve. Suivre le chemin parcouru.</em></p>
@@ -18,13 +18,13 @@ Un tableau de bord privé et calme pour suivre ses comptes, ses actifs et ses pr
 
 </div>
 
-Moumix-Finance rassemble ce qui est souvent éparpillé entre plusieurs banques, courtiers et applications. L’idée n’est pas de transformer l’épargne en salle de marché : l’application aide simplement à lire son patrimoine, à comprendre sa répartition et à observer son évolution.
+Moobank rassemble ce qui est souvent éparpillé entre plusieurs banques, courtiers et applications. L’idée n’est pas de transformer l’épargne en salle de marché : l’application aide simplement à lire son patrimoine, à comprendre sa répartition et à observer son évolution.
 
 ---
 
 ## Le concept
 
-Moumix-Finance relie trois questions très concrètes :
+Moobank relie trois questions très concrètes :
 
 - **Combien ai-je aujourd’hui ?**
 - **Dans quelles poches se trouve mon argent ?**
@@ -34,7 +34,7 @@ Les cours de marché ne sont qu’un moyen de valoriser les positions. Ils ne pr
 
 ## Les grands principes
 
-- **Une lecture patrimoniale** — pas de fil d’actualité, de bandeau boursier ou d’indicateur réservé aux traders.
+- **Une lecture patrimoniale** — aucune cotation défilante ni indicateur de trader ; seulement trois actualités maximum, liées aux principaux actifs.
 - **Une information à la fois** — les vues évitent d’empiler plusieurs représentations concurrentes.
 - **Des données personnelles séparées** — chaque compte Supabase ne voit que ses propres lignes grâce à l’authentification et aux règles RLS.
 - **Une trajectoire explicite** — toute estimation part du portefeuille renseigné et affiche clairement ses hypothèses.
@@ -50,10 +50,10 @@ La page d’accueil répond immédiatement à l’essentiel :
 - capital investi et plus-value latente ;
 - variation sur la période choisie ;
 - courbe de progression ;
-- allocation par poche, compte ou actif ;
-- aperçu des établissements et du poids de chaque compte.
+- allocation par poche ou actif ;
+- aperçu éditorial très court des sujets liés aux principaux actifs.
 
-L’ancien bloc de jalons automatiques a été retiré. Les filtres permettent toujours d’isoler un ou plusieurs types de comptes sans modifier les données enregistrées.
+L’ancien bloc de jalons automatiques et la seconde vue des comptes ont été retirés. Les filtres permettent toujours d’isoler un ou plusieurs types de comptes sans modifier les données enregistrées. Le bloc « À suivre » reste secondaire : il est limité à trois liens et une indisponibilité de Yahoo Finance ne bloque jamais le chargement du patrimoine.
 
 ### Portefeuille
 
@@ -79,7 +79,7 @@ La trajectoire remplace l’ancien simulateur dense. Elle utilise automatiquemen
 
 Le plan peut donc représenter simultanément un apport immobilier, un PEA, un CTO et du Bitcoin. Son total est calculé automatiquement. Les montants sont mémorisés localement avec une clé différente pour chaque utilisateur, afin que deux comptes utilisant le même appareil ne partagent pas leurs réglages.
 
-Trois résultats restent visibles : prudent, central et favorable. Les hypothèses annuelles par poche sont disponibles dans un volet replié pour ceux qui souhaitent les ajuster. Les objectifs personnels restent séparés des estimations.
+Trois résultats restent visibles : prudent, central et favorable. La composition du scénario central est intégrée dans la même carte pour éviter les grands espaces vides sur ordinateur. Les hypothèses annuelles par poche sont disponibles dans un volet replié pour ceux qui souhaitent les ajuster. Les objectifs personnels restent séparés des estimations.
 
 Cette partie n’écrit aucune hypothèse dans Supabase. Elle constitue une simulation indicative, jamais une promesse de rendement ni un conseil financier.
 
@@ -87,9 +87,8 @@ Cette partie n’écrit aucune hypothèse dans Supabase. Elle constitue une simu
 
 La version 2 introduit une identité complète autour d’un symbole en forme de **M** et de poches imbriquées. L’interface utilise des surfaces bleu-encre, un vert plus doux et quelques accents bleus afin de rester lisible sans ressembler à un terminal boursier.
 
-Sur mobile :
+Sur ordinateur, le logo, la navigation et le taux USD/EUR partagent un en-tête compact. Sur mobile :
 
-- le logo, la navigation et le taux USD/EUR partagent un en-tête compact sur ordinateur ;
 - la navigation principale est ancrée en bas sur mobile et respecte les zones sûres de l’iPhone ;
 - les actions d’ajout et le compte personnel sont regroupés derrière un hamburger discret ;
 - le pincement à deux doigts reste disponible ;
@@ -107,30 +106,20 @@ Le taux **USD/EUR** reste présent car il est utile à la compréhension des pos
 
 ## Version en cours
 
-**2.2.0 — septembre 2026**
+**2.3.0 — septembre 2026**
 
-Cette version reconstruit l’expérience sans migrer ni réécrire la base existante :
+Cette version adopte le nom **Moobank** sans migrer ni réécrire la base existante :
 
-- nouvelle architecture visuelle et nouveau logo ;
-- navigation renommée Synthèse, Portefeuille et Trajectoire ;
-- allocation regroupable par poche, compte ou actif ;
-- aperçu utile des comptes à la place des jalons ;
-- trajectoire simplifiée et toujours fondée sur le portefeuille réel ;
-- plan de versements mensuels distinct pour chaque compte ;
-- total mensuel recalculé automatiquement et préférences isolées par utilisateur sur l’appareil ;
-- lecture séparée du capital existant, des futurs versements et des rendements estimés ;
-- équivalent en euros d’aujourd’hui calculé avec une inflation modifiable ;
-- zone sûre supérieure intégrée à l’en-tête iPhone, sans double décalage au défilement ;
-- navigation mobile verrouillée en bas jusqu’aux petits formats tablette ;
-- moteur de trajectoire isolé du DOM et couvert par des tests dédiés ;
-- mécanisme commun de compensation pour les achats, ventes et modifications ;
-- historique de transaction idempotent pour éviter les doublons après une coupure réseau ;
-- nouvelles tentatives automatiques limitées pour les écritures temporairement refusées ;
-- ressources versionnées et revalidation réseau afin qu’un ancien CSS ne reste plus bloqué dans la PWA ;
-- recherche de mise à jour au retour dans l’application et toutes les quinze minutes ;
-- nouvelles icônes PWA ;
-- mascotte et cotations défilantes retirées du HTML et du JavaScript ;
-- modèle Supabase et historique existants conservés.
+- identité, manifeste, cache PWA, exports et workflow harmonisés sous le nom Moobank ;
+- logo sans tuile de fond dans l’interface, la connexion et le README ;
+- allocation ramenée aux deux lectures utiles : poches et actifs ;
+- vue redondante des comptes remplacée par trois actualités maximum ;
+- résultats et composition de la trajectoire réunis dans une seule carte compacte ;
+- navigation Synthèse, Portefeuille et Trajectoire fixée en bas sur mobile ;
+- zones sûres haute et basse de l’iPhone conservées ;
+- ancien plan mensuel local automatiquement repris sous la nouvelle identité ;
+- cotations, snapshots, compensations d’écriture et mises à jour PWA de la 2.2 conservés ;
+- modèle Supabase, comptes, positions, transactions et historique inchangés.
 
 ## Architecture
 
@@ -139,7 +128,7 @@ Cette version reconstruit l’expérience sans migrer ni réécrire la base exis
 | `index.html` | Structure et contenu de l’interface |
 | `assets/css/app.css` | Composants fonctionnels historiques |
 | `assets/css/v2.css` | Identité et hiérarchie de la version 2 |
-| `assets/brand/moumix-mark.svg` | Logo vectoriel |
+| `assets/brand/moobank-mark.svg` | Logo vectoriel |
 | `assets/js/core.js` | Fonctions techniques pures et testables |
 | `assets/js/trajectory-core.js` | Formules et hypothèses de trajectoire, sans dépendance à l’interface |
 | `assets/js/app.js` | Authentification, données et interface |
@@ -154,7 +143,7 @@ Le frontend reste en JavaScript vanilla, sans compilation. Il peut être dépos�
 
 ## Déploiement d’une mise à jour existante
 
-Pour une base Moumix-Finance déjà utilisée :
+Pour une base Moobank déjà utilisée :
 
 1. remplacer les fichiers du projet sur GitHub ;
 2. attendre la fin du déploiement GitHub Pages ;
@@ -164,6 +153,22 @@ Pour une base Moumix-Finance déjà utilisée :
 À partir de la 2.2, les feuilles de style et scripts portent aussi leur numéro de version. Même si l’ancien service worker est encore actif, il ne peut plus resservir silencieusement le CSS d’une version précédente.
 
 **Aucune migration SQL n’est nécessaire pour la version 2.** Ne relancez pas `supabase_shema.sql` sur une base déjà en service. Les comptes, positions, transactions, prélèvements, objectifs et snapshots existants sont relus tels quels.
+
+### Passage du dépôt à Moobank
+
+Le nom du dépôt GitHub se modifie manuellement après l’envoi des fichiers :
+
+1. ouvrir **Settings → General → Repository name** ;
+2. remplacer le nom actuel par `Moobank`, puis valider **Rename** ;
+3. vérifier **Settings → Pages** et attendre le nouveau déploiement ;
+4. vérifier que les trois secrets du snapshot sont toujours présents et que l’action « Moobank — snapshot quotidien » est verte ;
+5. ouvrir la nouvelle adresse `https://<utilisateur>.github.io/Moobank/` sur l’iPhone, installer **Moobank**, puis retirer l’ancienne web app seulement après contrôle.
+
+GitHub redirige le dépôt et les opérations Git après un renommage, mais exclut explicitement les adresses des sites de projet GitHub Pages. L’adresse publique change donc avec le nom du dépôt. Voir la [documentation officielle sur le renommage](https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository) et les [adresses des sites de projet](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages).
+
+Si un clone local existe, sa destination peut être actualisée avec `git remote set-url origin NOUVELLE_URL`. Si l’ancienne adresse apparaît dans **Supabase → Authentication → URL Configuration**, il faut également la remplacer ou ajouter la nouvelle adresse aux redirections autorisées. La base, les utilisateurs et les données Supabase ne changent pas.
+
+Le plan mensuel de trajectoire reste stocké par utilisateur sur l’appareil. La version 2.3 reprend automatiquement la clé locale de l’ancien nom, sans la supprimer, tant que l’adresse reste sur le même domaine GitHub Pages.
 
 ## Nouvelle installation
 
@@ -204,11 +209,11 @@ Le script optionnel `scripts/optional/remove-private-projection-plan.sql` suppri
 
 ## Limites
 
-- Moumix-Finance valorise les actifs mais ne tient pas automatiquement un solde espèces après chaque achat ou vente.
+- Moobank valorise les actifs mais ne tient pas automatiquement un solde espèces après chaque achat ou vente.
 - Les cotations peuvent être différées selon les marchés et le fournisseur.
 - La trajectoire est une estimation sensible aux hypothèses choisies.
 - L’application n’agrège pas automatiquement les comptes bancaires : les données restent saisies et contrôlées par l’utilisateur.
 
 ## La direction
 
-Moumix-Finance reste un projet personnel. Chaque évolution doit rendre le patrimoine plus facile à comprendre avant d’ajouter une nouvelle fonction : moins de bruit, une hiérarchie plus juste et des données auxquelles on peut faire confiance.
+Moobank reste un projet personnel. Chaque évolution doit rendre le patrimoine plus facile à comprendre avant d’ajouter une nouvelle fonction : moins de bruit, une hiérarchie plus juste et des données auxquelles on peut faire confiance.
