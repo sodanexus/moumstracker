@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="./assets/brand/moumix-mark.svg" width="88" height="88" alt="Logo Moumix">
+<img src="./assets/brand/moumix-mark.svg" width="88" height="88" alt="Logo Moumix-Finance">
 
-# Moumix
+# Moumix-Finance
 ### Le patrimoine, au même endroit
 
 <p><em>Comprendre ce que j’ai. Voir où il se trouve. Suivre le chemin parcouru.</em></p>
@@ -18,13 +18,13 @@ Un tableau de bord privé et calme pour suivre ses comptes, ses actifs et ses pr
 
 </div>
 
-Moumix rassemble ce qui est souvent éparpillé entre plusieurs banques, courtiers et applications. L’idée n’est pas de transformer l’épargne en salle de marché : l’application aide simplement à lire son patrimoine, à comprendre sa répartition et à observer son évolution.
+Moumix-Finance rassemble ce qui est souvent éparpillé entre plusieurs banques, courtiers et applications. L’idée n’est pas de transformer l’épargne en salle de marché : l’application aide simplement à lire son patrimoine, à comprendre sa répartition et à observer son évolution.
 
 ---
 
 ## Le concept
 
-Moumix relie trois questions très concrètes :
+Moumix-Finance relie trois questions très concrètes :
 
 - **Combien ai-je aujourd’hui ?**
 - **Dans quelles poches se trouve mon argent ?**
@@ -71,11 +71,13 @@ L’actualisation conserve la dernière cotation connue lorsqu’une nouvelle va
 
 ### Trajectoire
 
-La trajectoire remplace l’ancien simulateur dense. Elle utilise automatiquement le patrimoine déjà présent, puis demande seulement :
+La trajectoire remplace l’ancien simulateur dense. Elle utilise automatiquement le patrimoine déjà présent, puis permet de définir :
 
-- l’effort d’épargne mensuel ;
-- l’horizon ;
-- la destination des futurs versements.
+- le versement mensuel de chaque compte ;
+- l’horizon de la projection ;
+- les hypothèses de rendement par poche et l’inflation.
+
+Le plan peut donc représenter simultanément un apport immobilier, un PEA, un CTO et du Bitcoin. Son total est calculé automatiquement. Les montants sont mémorisés localement avec une clé différente pour chaque utilisateur, afin que deux comptes utilisant le même appareil ne partagent pas leurs réglages.
 
 Trois résultats restent visibles : prudent, central et favorable. Les hypothèses annuelles par poche sont disponibles dans un volet replié pour ceux qui souhaitent les ajuster. Les objectifs personnels restent séparés des estimations.
 
@@ -105,7 +107,7 @@ Le taux **USD/EUR** reste présent car il est utile à la compréhension des pos
 
 ## Version en cours
 
-**2.0.1 — septembre 2026**
+**2.1.0 — septembre 2026**
 
 Cette version reconstruit l’expérience sans migrer ni réécrire la base existante :
 
@@ -114,6 +116,8 @@ Cette version reconstruit l’expérience sans migrer ni réécrire la base exis
 - allocation regroupable par poche, compte ou actif ;
 - aperçu utile des comptes à la place des jalons ;
 - trajectoire simplifiée et toujours fondée sur le portefeuille réel ;
+- plan de versements mensuels distinct pour chaque compte ;
+- total mensuel recalculé automatiquement et préférences isolées par utilisateur sur l’appareil ;
 - lecture séparée du capital existant, des futurs versements et des rendements estimés ;
 - équivalent en euros d’aujourd’hui calculé avec une inflation modifiable ;
 - nouvelles icônes PWA ;
@@ -141,7 +145,7 @@ Le frontend reste en JavaScript vanilla, sans compilation. Il peut être dépos�
 
 ## Déploiement d’une mise à jour existante
 
-Pour une base Moumix déjà utilisée :
+Pour une base Moumix-Finance déjà utilisée :
 
 1. remplacer les fichiers du projet sur GitHub ;
 2. attendre la fin du déploiement GitHub Pages ;
@@ -179,15 +183,21 @@ Secrets GitHub nécessaires :
 
 L’inscription est absente de l’interface. Les deux comptes autorisés restent indépendants : l’identifiant de l’utilisateur accompagne chaque ligne et les politiques RLS empêchent la lecture des données d’un autre compte.
 
-L’export JSON permet de conserver une copie locale des comptes, positions, transactions, prélèvements, historique et objectifs.
+L’export JSON permet de conserver une copie locale des comptes, positions, transactions, prélèvements, historique, objectifs et plan mensuel.
+
+### Ancien plan patrimonial privé
+
+La version 2.1 n’utilise plus la table expérimentale `private_projection_plan`. Si son ancien script d’activation a été exécuté, cette table peut rester sans perturber l’application, mais elle conserve inutilement le texte personnel qui y avait été enregistré.
+
+Le script optionnel `scripts/optional/remove-private-projection-plan.sql` supprime uniquement cette table abandonnée et sa fonction de mise à jour. Il ne doit être exécuté que si ces anciennes informations ne sont plus utiles. Il ne touche pas à `goals` ni à `patrimoine_history`.
 
 ## Limites
 
-- Moumix valorise les actifs mais ne tient pas automatiquement un solde espèces après chaque achat ou vente.
+- Moumix-Finance valorise les actifs mais ne tient pas automatiquement un solde espèces après chaque achat ou vente.
 - Les cotations peuvent être différées selon les marchés et le fournisseur.
 - La trajectoire est une estimation sensible aux hypothèses choisies.
 - L’application n’agrège pas automatiquement les comptes bancaires : les données restent saisies et contrôlées par l’utilisateur.
 
 ## La direction
 
-Moumix reste un projet personnel. Chaque évolution doit rendre le patrimoine plus facile à comprendre avant d’ajouter une nouvelle fonction : moins de bruit, une hiérarchie plus juste et des données auxquelles on peut faire confiance.
+Moumix-Finance reste un projet personnel. Chaque évolution doit rendre le patrimoine plus facile à comprendre avant d’ajouter une nouvelle fonction : moins de bruit, une hiérarchie plus juste et des données auxquelles on peut faire confiance.

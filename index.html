@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Moumix — Patrimoine</title>
-<meta name="description" content="Moumix, le tableau de bord privé pour comprendre, organiser et suivre son patrimoine.">
-<meta name="moumix-version" content="2.0.1">
+<title>Moumix-Finance — Patrimoine</title>
+<meta name="description" content="Moumix-Finance, le tableau de bord privé pour comprendre, organiser et suivre son patrimoine.">
+<meta name="moumix-version" content="2.1.0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Moumix">
+<meta name="apple-mobile-web-app-title" content="Moumix-Finance">
 <meta name="theme-color" content="#091013">
 <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -36,7 +36,7 @@
     <div class="login-brand">
       <img src="./assets/brand/moumix-mark.svg" width="54" height="54" alt="">
       <div>
-        <div class="login-brand-name">Moumix</div>
+        <div class="login-brand-name">Moumix-Finance</div>
         <div class="login-brand-sub">Votre patrimoine, au même endroit.</div>
       </div>
     </div>
@@ -101,7 +101,7 @@
 <div class="app hidden" id="mainApp">
   <header class="app-header">
     <div class="header-primary">
-      <div class="brand-mark" aria-label="Moumix Finance" title="Moumix Finance">
+      <div class="brand-mark" aria-label="Moumix-Finance" title="Moumix-Finance">
         <img src="./assets/brand/moumix-mark.svg" width="44" height="44" alt="">
       </div>
 
@@ -343,19 +343,28 @@
         <div class="card trajectory-controls">
           <div class="card-header">
             <div>
-              <div class="card-title">Votre rythme</div>
-              <div class="card-subtitle">Trois réglages suffisent</div>
+              <div class="card-title">Votre plan</div>
+              <div class="card-subtitle">Versements mensuels et horizon</div>
             </div>
           </div>
           <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
 
-            <div class="sim-field">
-              <label class="sim-field-label" for="sim-monthly">Effort d’épargne mensuel</label>
-              <div class="sim-input-wrap">
-                <input type="number" id="sim-monthly" min="0" max="100000" step="50" value="200" oninput="simUpdateDebounced()" class="sim-input">
-                <span class="sim-unit">€ / mois</span>
+            <section class="sim-plan-field" aria-labelledby="simPlanTitle">
+              <div class="sim-plan-heading">
+                <div>
+                  <div class="sim-field-label" id="simPlanTitle">Plan mensuel</div>
+                  <div class="sim-help">Indiquez ce que vous versez réellement sur chaque compte.</div>
+                </div>
+                <strong class="sim-plan-total" id="sim-plan-total">0 € / mois</strong>
               </div>
-            </div>
+              <div class="sim-contribution-plan" id="sim-contribution-plan">
+                <div class="sim-help">Les comptes disponibles apparaîtront ici.</div>
+              </div>
+              <div class="sim-plan-footer">
+                <span>Ces montants sont appliqués pendant tout l’horizon et mémorisés pour ce compte sur cet appareil.</span>
+                <button type="button" class="sim-plan-reset" onclick="simResetContributions()">Remettre à zéro</button>
+              </div>
+            </section>
 
             <div class="sim-field">
               <label class="sim-field-label" for="sim-years">Horizon</label>
@@ -369,14 +378,6 @@
                 <button type="button" class="trajectory-year-btn active" onclick="setTrajectoryYears(20,this)">20 ans</button>
                 <button type="button" class="trajectory-year-btn" onclick="setTrajectoryYears(30,this)">30 ans</button>
               </div>
-            </div>
-
-            <div class="sim-field">
-              <label class="sim-field-label" for="sim-contribution-target">Destination</label>
-              <select id="sim-contribution-target" onchange="simUpdate()">
-                <option value="allocation">Selon la répartition actuelle</option>
-              </select>
-              <div class="sim-help" id="sim-contribution-hint">Chaque versement suivra la répartition actuelle du portefeuille.</div>
             </div>
 
             <details class="sim-settings-details">

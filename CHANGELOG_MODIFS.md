@@ -1,4 +1,18 @@
-# Moumix 2.0.1 — navigation et trajectoire
+# Moumix-Finance 2.1.0 — plan mensuel personnalisé
+
+- nom public harmonisé en **Moumix-Finance** dans l’interface et la PWA ;
+- versement mensuel configurable séparément pour chaque compte ;
+- total mensuel calculé automatiquement ;
+- regroupement fiable des versements par poche pour appliquer le bon rendement ;
+- plan mémorisé localement avec une clé distincte pour chaque utilisateur ;
+- synchronisation du plan entre les onglets ouverts sur le même appareil ;
+- plan inclus dans l’export JSON ;
+- script optionnel et ciblé pour retirer l’ancien `private_projection_plan` abandonné ;
+- aucun nouveau stockage Supabase et aucune migration SQL.
+
+---
+
+# Moumix-Finance 2.0.1 — navigation et trajectoire
 
 - logo et navigation réunis dans l’en-tête sur ordinateur ;
 - navigation Synthèse, Portefeuille et Trajectoire ancrée en bas sur mobile ;
