@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Moobank — Patrimoine</title>
 <meta name="description" content="Moobank, le tableau de bord privé pour comprendre, organiser et suivre son patrimoine.">
-<meta name="moobank-version" content="2.3.2">
+<meta name="moobank-version" content="2.4.0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,11 +14,11 @@
 <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="./assets/brand/moobank-mark.svg">
-<link rel="manifest" href="manifest.json?v=2.3.2">
+<link rel="manifest" href="manifest.json?v=2.4.0">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=2.3.2">
-<link rel="stylesheet" href="./assets/css/v2.css?v=2.3.2">
+<link rel="stylesheet" href="./assets/css/app.css?v=2.4.0">
+<link rel="stylesheet" href="./assets/css/v2.css?v=2.4.0">
 </head>
 <body>
   <!-- OFFLINE BANNER -->
@@ -120,6 +120,10 @@
             <span>Trajectoire</span>
           </button>
         </div>
+        <button type="button" class="nav-menu-btn" id="mobileNavActionsBtn" aria-label="Ouvrir le menu Moobank" aria-haspopup="dialog" aria-controls="mobileActionsModal" aria-expanded="false" onclick="openMobileActions(this)">
+          <img src="./assets/brand/moobank-mark.svg" width="20" height="20" alt="" aria-hidden="true">
+          <span>Menu</span>
+        </button>
       </nav>
     </div>
 
@@ -129,7 +133,7 @@
         <span id="eurusd-rate">—</span>
         <span id="eurusd-change" class="eurusd-change"></span>
       </div>
-      <button type="button" class="mobile-actions-toggle app-menu-toggle" id="mobileActionsBtn" aria-label="Ouvrir le menu" title="Menu" aria-haspopup="dialog" aria-controls="mobileActionsModal" aria-expanded="false" onclick="openMobileActions()">
+      <button type="button" class="mobile-actions-toggle app-menu-toggle" id="mobileActionsBtn" aria-label="Ouvrir le menu" title="Menu" aria-haspopup="dialog" aria-controls="mobileActionsModal" aria-expanded="false" onclick="openMobileActions(this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
     </div>
@@ -543,9 +547,9 @@
 
   </div><!-- end tab-simulator -->
 
-<script src="./assets/js/core.js?v=2.3.2"></script>
-<script src="./assets/js/trajectory-core.js?v=2.3.2"></script>
-<script src="./assets/js/app.js?v=2.3.2"></script>
+<script src="./assets/js/core.js?v=2.4.0"></script>
+<script src="./assets/js/trajectory-core.js?v=2.4.0"></script>
+<script src="./assets/js/app.js?v=2.4.0"></script>
 
 </div><!-- end .app -->
 
@@ -753,6 +757,6 @@
   </div>
 </div>
 
-<script src="./assets/js/history-import.js?v=2.3.2"></script>
+<script src="./assets/js/history-import.js?v=2.4.0"></script>
 </body>
 </html>

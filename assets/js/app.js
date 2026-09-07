@@ -77,22 +77,22 @@ const ALLOC_COLORS = ['#55e6b1','#65a8ff','#f1c56b','#ff7189','#b79aff','#63d6ed
 // ─── ONGLETS ─────────────────────────────────────────────────────────────────
 const TAB_ORDER = ['overview', 'details', 'simulator'];
 let currentTabName = 'overview';
+let tabTransitionToken = 0;
 
 function switchTab(name, btn) {
-  if (name === currentTabName) return;
+  if (!TAB_ORDER.includes(name) || name === currentTabName) return;
+  const transitionToken = ++tabTransitionToken;
   const current = document.querySelector('.tab-panel.active');
-  const currentIdx = TAB_ORDER.indexOf(currentTabName);
-  const nextIdx = TAB_ORDER.indexOf(name);
-  const goingRight = nextIdx > currentIdx;
 
-  // Sortie de l'onglet actuel
+  // Toutes les vues utilisent le même fondu : aucun déplacement horizontal
+  // susceptible de donner une impression de zoom ou de largeur différente.
   if (current) {
-    current.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
+    current.style.transition = `opacity ${TIMING_TAB_TRANSITION}ms ease`;
     current.style.opacity = '0';
-    current.style.transform = goingRight ? 'translateX(-14px)' : 'translateX(14px)';
   }
 
   setTimeout(() => {
+    if (transitionToken !== tabTransitionToken) return;
     document.querySelectorAll('.tab-panel').forEach(p => {
       p.classList.remove('active', 'slide-left');
       p.style.opacity = '';
@@ -105,7 +105,7 @@ function switchTab(name, btn) {
       b.setAttribute('aria-selected', 'false');
     });
     const next = document.getElementById('tab-' + name);
-    if (!goingRight) next.classList.add('slide-left');
+    if (!next) return;
     next.classList.add('active');
     if (btn) {
       btn.classList.add('active');
@@ -242,16 +242,25 @@ function updateUserUI(user) {
 // ─── MENU PRINCIPAL ─────────────────────────────────────────────────────────
 let mobileActionsPreviousInert = false;
 
-function openMobileActions() {
+function setActionsMenuExpanded(expanded) {
+  document.querySelectorAll('#mobileActionsBtn, #mobileNavActionsBtn').forEach(button => {
+    button.setAttribute('aria-expanded', String(expanded));
+  });
+}
+
+function openMobileActions(trigger) {
   const overlay = document.getElementById('mobileActionsModal');
   const app = document.getElementById('mainApp');
   if (!overlay || !app || !currentUser ||
       app.classList.contains('hidden') || document.querySelector('.modal-overlay.open')) return;
   updateUserUI(currentUser);
   overlay.inert = false;
-  document.getElementById('mobileActionsBtn').setAttribute('aria-expanded', 'true');
+  const returnTarget = trigger instanceof HTMLElement
+    ? trigger
+    : [...document.querySelectorAll('#mobileActionsBtn, #mobileNavActionsBtn')].find(button => button.offsetParent !== null);
+  setActionsMenuExpanded(true);
   showDialog(overlay, '#mobileAddAccountBtn');
-  _dialogReturnFocus = document.getElementById('mobileActionsBtn');
+  _dialogReturnFocus = returnTarget || null;
   mobileActionsPreviousInert = app.inert;
   app.inert = true;
 }
@@ -260,7 +269,7 @@ function closeMobileActions() {
   const overlay = document.getElementById('mobileActionsModal');
   if (!overlay?.classList.contains('open')) return;
   document.getElementById('mainApp').inert = mobileActionsPreviousInert;
-  document.getElementById('mobileActionsBtn').setAttribute('aria-expanded', 'false');
+  setActionsMenuExpanded(false);
   hideDialog(overlay);
   overlay.inert = true;
 }

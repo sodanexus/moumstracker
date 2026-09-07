@@ -58,7 +58,7 @@ test('la nouvelle identité transparente est utilisée par le site et la PWA', (
   assert.match(worker, /assets\/css\/v2\.css/);
   assert.doesNotMatch(mark, /<rect\b/i);
   assert.equal(manifest.name, 'Moobank — Patrimoine');
-  assert.equal(JSON.parse(read('version.json')).version, '2.3.2');
+  assert.equal(JSON.parse(read('version.json')).version, '2.4.0');
 });
 
 test('la synthèse remplace le doublon des poches par trois actualités non bloquantes', () => {
@@ -78,8 +78,12 @@ test('la navigation et les actions suivent la nouvelle hiérarchie responsive', 
   const app = read('assets/js/app.js');
   assert.match(html, /header-primary[\s\S]*brand-mark[\s\S]*navigation-bar/);
   assert.match(html, /app-menu-toggle/);
+  assert.match(html, /id="mobileNavActionsBtn"[\s\S]*moobank-mark\.svg[\s\S]*>Menu</);
   assert.match(css, /@media \(max-width: 820px\)[\s\S]*\.navigation-bar \{[\s\S]*position: fixed/);
+  assert.match(css, /\.nav-menu-btn \{ display: inline-flex; \}/);
   assert.match(css, /padding-bottom: max\(92px, calc\(76px \+ var\(--safe-bottom\)\)\)/);
+  assert.match(app, /setActionsMenuExpanded/);
+  assert.match(app, /#mobileActionsBtn, #mobileNavActionsBtn/);
   assert.doesNotMatch(app, /mobileActionsMedia\.matches/);
   assert.doesNotMatch(html, /id="openAccountBtn"|id="openPositionBtn"|id="userMenu"/);
 });
@@ -187,20 +191,38 @@ test('le service worker couvre les fichiers séparés et attend la validation ut
   assert.match(worker, /mustStayFresh/);
 });
 
-test('la safe area mobile appartient à l’en-tête et la navigation reste en bas', () => {
+test('le contenu respecte la safe area et le chrome mobile reste uniquement en bas', () => {
   const css = read('assets/css/v2.css');
   const legacyCss = read('assets/css/app.css');
   const mobileCss = css.slice(css.indexOf('@media (max-width: 820px)'));
   const mobileHeaderRule = mobileCss.match(/\.app > header \{[\s\S]*?\}/)?.[0] || '';
   assert.match(css, /--safe-top: env\(safe-area-inset-top, 0px\)/);
   assert.match(css, /--safe-bottom: env\(safe-area-inset-bottom, 0px\)/);
-  assert.match(css, /\.app > header \{[\s\S]*?top: 0;[\s\S]*?padding: calc\(var\(--safe-top\) \+ 7px\)/);
+  assert.match(mobileCss, /\.app \{[\s\S]*?padding-top: max\(12px, calc\(var\(--safe-top\) \+ 8px\)\)/);
+  assert.match(mobileHeaderRule, /position: static;/);
+  assert.match(mobileHeaderRule, /height: 0;/);
+  assert.match(mobileHeaderRule, /padding: 0;/);
   assert.match(mobileHeaderRule, /-webkit-backdrop-filter: none;/);
   assert.match(mobileHeaderRule, /backdrop-filter: none;/);
   assert.doesNotMatch(mobileHeaderRule, /blur\(/);
+  assert.match(mobileCss, /\.app > header \.brand-mark,[\s\S]*?\.app > header > \.header-tools \{ display: none !important; \}/);
   assert.match(css, /@media \(max-width: 820px\)[\s\S]*?\.navigation-bar \{[\s\S]*?position: fixed !important;[\s\S]*?top: auto !important;[\s\S]*?bottom: 0 !important;[\s\S]*?var\(--safe-bottom\)/);
   assert.match(legacyCss, /@media\(max-width:768px\)[\s\S]*?\.navigation-bar\{[\s\S]*?position:fixed;[\s\S]*?top:auto;[\s\S]*?bottom:0;[\s\S]*?safe-area-inset-bottom/);
   assert.doesNotMatch(legacyCss, /\.navigation-bar\{[\s\S]{0,220}position:sticky;[\s\S]{0,120}top:env\(safe-area-inset-top\)/);
+});
+
+test('les trois vues gardent la même échelle et la même animation', () => {
+  const html = read('index.html');
+  const css = read('assets/css/v2.css');
+  const app = read('assets/js/app.js');
+  assert.match(html, /width=device-width, initial-scale=1\.0, viewport-fit=cover/);
+  assert.doesNotMatch(html, /user-scalable\s*=\s*no|maximum-scale\s*=\s*1/i);
+  assert.match(css, /-webkit-text-size-adjust: 100%/);
+  assert.match(css, /\.tab-panel \{ width: 100%; min-width: 0; \}/);
+  assert.match(css, /@keyframes moobankTabFadeIn/);
+  assert.match(css, /\.tab-panel\.active,[\s\S]*?\.tab-panel\.active\.slide-left \{ animation: moobankTabFadeIn/);
+  assert.match(css, /input, select, textarea \{ font-size: 16px !important; \}/);
+  assert.doesNotMatch(app, /current\.style\.transform|goingRight|translateX\(-?14px\)/);
 });
 
 test('les versions publiques et les ressources versionnées sont cohérentes', () => {
@@ -209,7 +231,7 @@ test('les versions publiques et les ressources versionnées sont cohérentes', (
   const version = JSON.parse(read('version.json')).version;
   const pkg = JSON.parse(read('package.json'));
   const lock = JSON.parse(read('package-lock.json'));
-  assert.equal(version, '2.3.2');
+  assert.equal(version, '2.4.0');
   assert.equal(pkg.version, version);
   assert.equal(lock.version, version);
   assert.equal(lock.packages[''].version, version);

@@ -1,3 +1,18 @@
+# Moobank 2.4.0 — navigation mobile et mouvement uniformes
+
+- suppression de la bande d’en-tête sur mobile : le contenu commence directement après la safe area haute ;
+- logo et hamburger supérieurs masqués uniquement sur mobile ;
+- ajout d’un quatrième bouton **Menu** dans la navigation basse, avec le symbole Moobank ;
+- quatre zones tactiles de même largeur et safe area basse conservée ;
+- transitions entre Synthèse, Portefeuille et Trajectoire unifiées en un fondu court, sans glissement horizontal ni effet d’échelle ;
+- largeur des trois vues stabilisée et inflation automatique du texte désactivée sur iOS ;
+- champs mobiles maintenus à 16 px afin d’éviter le zoom Safari au focus, sans désactiver le pincement volontaire ;
+- protection contre les changements d’onglet très rapides afin d’éviter les animations concurrentes ;
+- ressources versionnées en 2.4.0 pour renouveler la PWA ;
+- aucune modification de Supabase ni des données enregistrées.
+
+---
+
 # Moobank 2.3.2 — navigation mobile réellement ancrée
 
 - retrait du `backdrop-filter` sur l’en-tête mobile, qui créait sur WebKit le repère de positionnement de la navigation fixe ;

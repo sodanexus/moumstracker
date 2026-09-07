@@ -106,7 +106,7 @@ Le taux **USD/EUR** reste présent car il est utile à la compréhension des pos
 
 ## Version en cours
 
-**2.3.2 — septembre 2026**
+**2.4.0 — septembre 2026**
 
 Cette version adopte le nom **Moobank** sans migrer ni réécrire la base existante :
 
@@ -119,6 +119,10 @@ Cette version adopte le nom **Moobank** sans migrer ni réécrire la base exista
 - zones sûres haute et basse de l’iPhone conservées ;
 - ancienne règle mobile supérieure supprimée pour que la navigation ne puisse plus remonter en haut ;
 - flou retiré de l’en-tête mobile : sur Safari, il capturait le positionnement fixe de la navigation et la maintenait en haut ;
+- en-tête mobile supprimé pour rendre immédiatement l’espace au contenu ;
+- menu déplacé dans la barre basse comme quatrième bouton, représenté par le logo Moobank ;
+- géométrie commune aux trois vues et transitions remplacées par un fondu uniforme sans glissement ni changement d’échelle ;
+- taille du texte stabilisée sur iOS et champs maintenus à 16 px pour éviter le zoom automatique au focus ;
 - courbe de trajectoire replacée sous les résultats dans la colonne de droite sur ordinateur ;
 - libellés « Central » et « Rythme attendu » séparés sans chevauchement ;
 - ancien plan mensuel local automatiquement repris sous la nouvelle identité ;
