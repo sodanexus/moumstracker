@@ -402,6 +402,79 @@ td { padding-top: 12px; padding-bottom: 12px; }
 .trajectory-layout { display: grid; grid-template-columns: minmax(270px, .68fr) minmax(0, 1.32fr); gap: 16px; margin-bottom: 16px; }
 .trajectory-controls .card-body { display: flex; flex-direction: column; gap: 17px; }
 .trajectory-controls input, .trajectory-controls select { background: var(--surface2); }
+.sim-plan-field {
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: rgba(9, 16, 19, .24);
+}
+.sim-plan-heading,
+.sim-plan-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sim-plan-total {
+  flex: none;
+  color: var(--accent);
+  font: 600 .76rem 'DM Mono', monospace;
+  white-space: nowrap;
+}
+.sim-contribution-plan { margin-top: 11px; border-top: 1px solid var(--border); }
+.sim-contribution-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px;
+  gap: 12px;
+  align-items: center;
+  min-height: 54px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(48, 68, 76, .58);
+  cursor: text;
+}
+.sim-contribution-account { display: block; min-width: 0; }
+.sim-contribution-account strong,
+.sim-contribution-account small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sim-contribution-account strong { color: var(--text); font-size: .8rem; font-weight: 600; }
+.sim-contribution-account small { margin-top: 2px; color: var(--muted); font-size: .68rem; }
+.sim-contribution-control {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface2);
+}
+.sim-contribution-control:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(85, 230, 177, .08); }
+.sim-contribution-input {
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 5px 8px 9px;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  font: 600 .82rem 'DM Mono', monospace;
+  text-align: right;
+  -moz-appearance: textfield;
+}
+.sim-contribution-input::-webkit-inner-spin-button,
+.sim-contribution-input::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
+.sim-contribution-control > span { padding-right: 9px; color: var(--muted); font: .72rem 'DM Mono', monospace; }
+.sim-plan-footer { align-items: center; margin-top: 10px; color: var(--muted); font-size: .67rem; line-height: 1.45; }
+.sim-plan-reset,
+.sim-plan-empty button {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 600 .68rem 'Inter', sans-serif;
+  cursor: pointer;
+}
+.sim-plan-reset:hover,
+.sim-plan-empty button:hover { color: var(--accent); }
+.sim-plan-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; color: var(--muted); font-size: .72rem; }
+.sim-plan-empty button { color: var(--accent); }
 .trajectory-years { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .trajectory-year-btn {
   min-height: 36px;
@@ -614,6 +687,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   .trajectory-results { grid-template-columns: 1fr; }
   .trajectory-main-result, .trajectory-composition { grid-column: auto; }
   .trajectory-years { grid-template-columns: repeat(4, 1fr); }
+  .sim-plan-heading, .sim-plan-footer { align-items: flex-start; }
+  .sim-plan-footer { flex-direction: column; }
+  .sim-contribution-row { grid-template-columns: minmax(0, 1fr) 108px; }
   .sim-inflation-setting { grid-template-columns: 1fr; }
   .sim-input-wrap-compact { max-width: 180px; }
   .objectives-copy p { display: none; }
