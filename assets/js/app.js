@@ -274,6 +274,7 @@ function runMobileAction(action) {
 }
 
 function exportDataBackup() {
+  simEnsureContributionPlan();
   const payload = {
     format: 'moumix-finance-backup',
     version: 1,
@@ -283,7 +284,8 @@ function exportDataBackup() {
     prelevements,
     transactions,
     patrimoineHistory,
-    goals
+    goals,
+    trajectoryPlan: { ...simContributionPlan }
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1789,8 +1791,8 @@ function renderAll() {
 function updateBrowserTitle() {
   const totalEl = document.getElementById('totalValue');
   document.title = totalEl && totalEl.textContent !== '—'
-    ? totalEl.textContent + ' · Moumix'
-    : 'Moumix — Patrimoine';
+    ? totalEl.textContent + ' · Moumix-Finance'
+    : 'Moumix-Finance — Patrimoine';
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
@@ -2678,6 +2680,9 @@ function clearLoadedSession() {
   currentUser = null;
   _appReadyTask = null;
   accounts = []; positions = []; prelevements = []; transactions = []; patrimoineHistory = []; goals = [];
+  simContributionPlan = {};
+  simContributionPlanUserId = null;
+  _simControlsSignature = null;
   positionHistory = {};
   clearInterval(_priceRefreshInterval); _priceRefreshInterval = null;
   clearInterval(_eurUsdInterval); _eurUsdInterval = null;
@@ -2900,7 +2905,10 @@ const SIM_TYPE_LABELS = Object.freeze({
   Immo: 'Immobilier', Autre: 'Autre',
 });
 const SIM_TYPE_ORDER = Object.freeze(['PEA','CTO','PEE','PER','AV','Crypto','Livret','Immo','Autre']);
+const SIM_PLAN_STORAGE_PREFIX = 'moumix-finance:trajectory-plan:';
 let simRateOverrides = {};
+let simContributionPlan = {};
+let simContributionPlanUserId = null;
 let _simControlsSignature = null;
 
 function simFmt(n) { return _fmtEur0.format(n); }
@@ -2915,6 +2923,86 @@ function simAssumption(type) {
   const override = simRateOverrides[type];
   return { rate: Number.isFinite(override) ? override : fallback.rate, spread: fallback.spread };
 }
+
+function simEnsureContributionPlan() {
+  const userId = currentUser?.id || null;
+  if (simContributionPlanUserId === userId) return;
+  simContributionPlanUserId = userId;
+  simContributionPlan = {};
+  if (!userId) return;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SIM_PLAN_STORAGE_PREFIX + userId) || '{}');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+    Object.entries(parsed).forEach(([accountId, rawAmount]) => {
+      const amount = Number(rawAmount);
+      if (Number.isFinite(amount) && amount > 0) simContributionPlan[accountId] = Math.min(100000, amount);
+    });
+  } catch (error) {
+    console.warn('[Moumix] plan mensuel local illisible, valeurs ignorées');
+  }
+}
+
+function simPersistContributionPlan() {
+  if (!simContributionPlanUserId) return;
+  try {
+    localStorage.setItem(SIM_PLAN_STORAGE_PREFIX + simContributionPlanUserId, JSON.stringify(simContributionPlan));
+  } catch (error) {
+    console.warn('[Moumix] plan mensuel non mémorisé sur cet appareil');
+  }
+}
+
+function simContributionAmount(accountId) {
+  simEnsureContributionPlan();
+  const amount = Number(simContributionPlan[accountId]);
+  return Number.isFinite(amount) && amount > 0 ? amount : 0;
+}
+
+function simSetContribution(accountId, rawValue) {
+  if (!accounts.some(account => account.id === accountId)) return;
+  simEnsureContributionPlan();
+  const parsed = Number.parseFloat(String(rawValue ?? '').replace(',', '.'));
+  const amount = Number.isFinite(parsed) ? Math.max(0, Math.min(100000, parsed)) : 0;
+  if (amount > 0) simContributionPlan[accountId] = amount;
+  else delete simContributionPlan[accountId];
+  simPersistContributionPlan();
+  simUpdateDebounced();
+}
+
+function simNormalizeContribution(input) {
+  const accountId = input?.dataset?.accountId;
+  if (!accountId) return;
+  const amount = simContributionAmount(accountId);
+  input.value = amount > 0 ? String(amount) : '';
+  simUpdate();
+}
+
+function simResetContributions() {
+  simEnsureContributionPlan();
+  simContributionPlan = {};
+  simPersistContributionPlan();
+  document.querySelectorAll('.sim-contribution-input').forEach(input => { input.value = ''; });
+  simUpdate();
+  showToast('Plan mensuel remis à zéro', 'success');
+}
+
+function simPruneContributionPlan() {
+  simEnsureContributionPlan();
+  const accountIds = new Set(accounts.map(account => account.id));
+  let changed = false;
+  Object.keys(simContributionPlan).forEach(accountId => {
+    if (accountIds.has(accountId)) return;
+    delete simContributionPlan[accountId];
+    changed = true;
+  });
+  if (changed) simPersistContributionPlan();
+}
+
+window.addEventListener('storage', event => {
+  if (!currentUser?.id || event.key !== SIM_PLAN_STORAGE_PREFIX + currentUser.id) return;
+  simContributionPlanUserId = null;
+  _simControlsSignature = null;
+  if (currentTabName === 'simulator') simUpdate();
+});
 
 function simGetPortfolioBuckets() {
   const grouped = new Map();
@@ -2953,6 +3041,8 @@ function simGetPortfolioBuckets() {
 }
 
 function simRenderPortfolioControls(buckets) {
+  simEnsureContributionPlan();
+  simPruneContributionPlan();
   const total = buckets.reduce((sum, bucket) => sum + bucket.value, 0);
   const totalEl = document.getElementById('sim-source-total');
   const metaEl = document.getElementById('sim-source-meta');
@@ -2977,17 +3067,30 @@ function simRenderPortfolioControls(buckets) {
       : 'Ajoutez au moins un compte ou une position pour obtenir une projection personnalisée.';
   }
 
-  const signature = buckets.map(bucket => bucket.type).join('\u001f');
-  const select = document.getElementById('sim-contribution-target');
+  const signature = [currentUser?.id || '', ...buckets.map(bucket => bucket.type),
+    ...accounts.map(account => `${account.id}:${account.type}:${account.name}`)].join('\u001f');
+  const plan = document.getElementById('sim-contribution-plan');
   const settings = document.getElementById('sim-category-settings');
   if (signature !== _simControlsSignature) {
-    const previousTarget = select?.value || 'allocation';
-    if (select) {
-      select.innerHTML = '<option value="allocation">Selon la répartition actuelle</option>' + buckets.map(bucket =>
-        `<option value="${_esc(bucket.type)}">100 % vers ${_esc(bucket.label)}</option>`
-      ).join('');
-      select.value = buckets.some(bucket => bucket.type === previousTarget) || previousTarget === 'allocation'
-        ? previousTarget : 'allocation';
+    if (plan) {
+      plan.innerHTML = accounts.length ? accounts.map(account => {
+        const amount = simContributionAmount(account.id);
+        return `<label class="sim-contribution-row">
+          <span class="sim-contribution-account">
+            <strong>${_esc(account.name)}</strong>
+            <small>${_esc(simTypeLabel(account.type))}</small>
+          </span>
+          <span class="sim-contribution-control">
+            <input class="sim-contribution-input" type="number" inputmode="decimal" min="0" max="100000" step="10"
+              value="${amount || ''}" data-account-id="${_esc(account.id)}" aria-label="Versement mensuel sur ${_esc(account.name)}"
+              placeholder="0" oninput="simSetContribution(this.dataset.accountId,this.value)" onchange="simNormalizeContribution(this)">
+            <span>€</span>
+          </span>
+        </label>`;
+      }).join('') : `<div class="sim-plan-empty">
+        <span>Créez d’abord un compte pour lui affecter un versement.</span>
+        <button type="button" onclick="openModal('account')">Ajouter un compte</button>
+      </div>`;
     }
     if (settings) {
       settings.innerHTML = buckets.length ? buckets.map(bucket => {
@@ -3041,19 +3144,11 @@ function simResetRates() {
   simUpdate();
 }
 
-
-function simContributionWeights(buckets, target) {
-  const weights = new Map(buckets.map(bucket => [bucket.type, 0]));
-  if (!buckets.length) return weights;
-  const targetBucket = buckets.find(bucket => bucket.type === target);
-  if (target !== 'allocation' && targetBucket) {
-    weights.set(targetBucket.type, 1);
-    return weights;
-  }
-  const total = buckets.reduce((sum, bucket) => sum + Math.max(0, bucket.value), 0);
-  if (total > 0) buckets.forEach(bucket => weights.set(bucket.type, Math.max(0, bucket.value) / total));
-  else buckets.forEach(bucket => weights.set(bucket.type, 1 / buckets.length));
-  return weights;
+function simMonthlyContributionsByType(buckets) {
+  simEnsureContributionPlan();
+  const grouped = MoumixCore.groupMonthlyContributions(accounts, simContributionPlan);
+  const amounts = new Map(buckets.map(bucket => [bucket.type, grouped[bucket.type] || 0]));
+  return amounts;
 }
 
 function simScenarioRatePct(type, scenario) {
@@ -3062,23 +3157,21 @@ function simScenarioRatePct(type, scenario) {
   return Math.max(-95, Math.min(100, assumption.rate + delta));
 }
 
-function simWeightedRatePct(buckets, monthly, years, target, scenario) {
+function simWeightedRatePct(buckets, monthlyByType, years, scenario) {
   if (!buckets.length) return 0;
-  const weights = simContributionWeights(buckets, target);
-  const futureContributions = monthly * 12 * years;
   let basisTotal = 0;
   let weightedTotal = 0;
   buckets.forEach(bucket => {
     // La moitié des versements futurs approxime leur exposition moyenne sur la période.
-    const basis = bucket.value + futureContributions * (weights.get(bucket.type) || 0) / 2;
+    const futureContributions = (monthlyByType.get(bucket.type) || 0) * 12 * years;
+    const basis = bucket.value + futureContributions / 2;
     basisTotal += basis;
     weightedTotal += basis * simScenarioRatePct(bucket.type, scenario);
   });
   return basisTotal > 0 ? weightedTotal / basisTotal : 0;
 }
 
-function simComputePortfolio(buckets, monthly, years, scenario, target) {
-  const weights = simContributionWeights(buckets, target);
+function simComputePortfolio(buckets, monthlyByType, years, scenario) {
   const states = buckets.map(bucket => {
     const annualRate = simScenarioRatePct(bucket.type, scenario) / 100;
     return {
@@ -3089,7 +3182,7 @@ function simComputePortfolio(buckets, monthly, years, scenario, target) {
       contributed: 0,
       annualRate,
       monthlyRate: Math.pow(1 + annualRate, 1 / 12) - 1,
-      monthlyContribution: monthly * (weights.get(bucket.type) || 0),
+      monthlyContribution: monthlyByType.get(bucket.type) || 0,
     };
   });
   const initial = states.reduce((sum, state) => sum + state.start, 0);
@@ -3143,22 +3236,6 @@ function syncTrajectoryYearButtons(years) {
   });
 }
 
-function simUpdateContributionHint(buckets, target) {
-  const hint = document.getElementById('sim-contribution-hint');
-  if (!hint) return;
-  const total = buckets.reduce((sum, bucket) => sum + bucket.value, 0);
-  if (target === 'allocation') {
-    hint.textContent = total > 0
-      ? 'Chaque versement suivra la répartition actuelle du portefeuille.'
-      : buckets.length
-        ? 'Sans encours valorisé, les versements sont répartis à parts égales.'
-        : 'Ajoutez un compte pour définir l’affectation des versements.';
-  } else {
-    const bucket = buckets.find(item => item.type === target);
-    hint.textContent = bucket ? `Tous les nouveaux versements seront projetés vers ${bucket.label}.` : '';
-  }
-}
-
 function simRenderScenario(prefix, result, weightedRate) {
   const totalEl = document.getElementById('sim-res-total-' + prefix);
   const interestEl = document.getElementById('sim-res-interest-' + prefix);
@@ -3193,24 +3270,24 @@ function simRenderBreakdown(result) {
 }
 
 function simUpdate() {
-  const monthlyInput = document.getElementById('sim-monthly');
   const yearsInput = document.getElementById('sim-years');
   const inflationInput = document.getElementById('sim-inflation');
-  const monthly = Math.max(0, Math.min(100000, Number.parseFloat(monthlyInput?.value) || 0));
   const years = Math.max(1, Math.min(60, Number.parseInt(yearsInput?.value, 10) || 1));
   const inflation = Math.max(0, Math.min(20, Number.parseFloat(inflationInput?.value) || 0));
   syncTrajectoryYearButtons(years);
   const buckets = simGetPortfolioBuckets();
   const initial = simRenderPortfolioControls(buckets);
-  const target = document.getElementById('sim-contribution-target')?.value || 'allocation';
-  simUpdateContributionHint(buckets, target);
+  const monthlyByType = simMonthlyContributionsByType(buckets);
+  const monthly = [...monthlyByType.values()].reduce((sum, amount) => sum + amount, 0);
+  const planTotal = document.getElementById('sim-plan-total');
+  if (planTotal) planTotal.textContent = `${simFmt(monthly)} / mois`;
 
-  const ratePess = simWeightedRatePct(buckets, monthly, years, target, 'pess');
-  const rateReal = simWeightedRatePct(buckets, monthly, years, target, 'real');
-  const rateOpti = simWeightedRatePct(buckets, monthly, years, target, 'opti');
-  const resPess = simComputePortfolio(buckets, monthly, years, 'pess', target);
-  const resReal = simComputePortfolio(buckets, monthly, years, 'real', target);
-  const resOpti = simComputePortfolio(buckets, monthly, years, 'opti', target);
+  const ratePess = simWeightedRatePct(buckets, monthlyByType, years, 'pess');
+  const rateReal = simWeightedRatePct(buckets, monthlyByType, years, 'real');
+  const rateOpti = simWeightedRatePct(buckets, monthlyByType, years, 'opti');
+  const resPess = simComputePortfolio(buckets, monthlyByType, years, 'pess');
+  const resReal = simComputePortfolio(buckets, monthlyByType, years, 'real');
+  const resOpti = simComputePortfolio(buckets, monthlyByType, years, 'opti');
 
   simData     = resReal.data;
   simDataPess = resPess.data;
@@ -3628,7 +3705,7 @@ function showAppUpdatePrompt(onUpdate) {
   prompt.id = 'appUpdatePrompt';
   prompt.className = 'app-update-prompt';
   prompt.setAttribute('role', 'status');
-  prompt.innerHTML = `<span>Une nouvelle version de Moumix Finance est prête.</span>
+  prompt.innerHTML = `<span>Une nouvelle version de Moumix-Finance est prête.</span>
     <button type="button" class="btn btn-sm btn-primary">Mettre à jour</button>`;
   prompt.querySelector('button').addEventListener('click', () => {
     prompt.querySelector('button').disabled = true;
@@ -3644,6 +3721,6 @@ window.App.authRecoveryVersion = '2026-08-28.1';
 for (const k of ['openMobileActions', 'closeMobileActions', 'runMobileAction']) {
   window.App[k] = window[k];
 }
-for (const k of ['addAccount', 'cancelAddPrel', 'cancelLivretEdit', 'closeEditPosition', 'closeGoalModal', 'closeModal', 'confirmAddPrel', 'confirmEditPosition', 'confirmEditPrel', 'confirmLivretSolde', 'confirmPosition', 'deleteAccount', 'deleteGoal', 'deletePosition', 'deletePrel', 'editGoal', 'editLivretSolde', 'editPrel', 'exportDataBackup', 'openAddGoal', 'openAddPrel', 'openEditPosition', 'openModal', 'refreshAllPrices', 'renderPrelevements', 'saveGoal', 'selectGoalEmoji', 'selectTickerByIndex', 'setAllocationMode', 'setChartPeriod', 'setPosSide', 'setTrajectoryYears', 'signOut', 'simNormalizeRate', 'simResetRates', 'simSetRate', 'sortPositions', 'switchPosTab', 'switchTab', 'toggleAll', 'toggleType']) {
+for (const k of ['addAccount', 'cancelAddPrel', 'cancelLivretEdit', 'closeEditPosition', 'closeGoalModal', 'closeModal', 'confirmAddPrel', 'confirmEditPosition', 'confirmEditPrel', 'confirmLivretSolde', 'confirmPosition', 'deleteAccount', 'deleteGoal', 'deletePosition', 'deletePrel', 'editGoal', 'editLivretSolde', 'editPrel', 'exportDataBackup', 'openAddGoal', 'openAddPrel', 'openEditPosition', 'openModal', 'refreshAllPrices', 'renderPrelevements', 'saveGoal', 'selectGoalEmoji', 'selectTickerByIndex', 'setAllocationMode', 'setChartPeriod', 'setPosSide', 'setTrajectoryYears', 'signOut', 'simNormalizeContribution', 'simNormalizeRate', 'simResetContributions', 'simResetRates', 'simSetContribution', 'simSetRate', 'sortPositions', 'switchPosTab', 'switchTab', 'toggleAll', 'toggleType']) {
   if (typeof window[k] === 'function') window.App[k] = window[k];
 }

@@ -28,7 +28,20 @@
     return { currency: upper, unitFactor: 1 };
   }
 
-  const api = Object.freeze({ mapWithConcurrency, normalizeQuoteCurrency });
+  function groupMonthlyContributions(accounts, plan) {
+    const totals = {};
+    for (const account of Array.from(accounts || [])) {
+      const accountId = String(account?.id || '');
+      const type = String(account?.type || 'Autre');
+      if (!accountId) continue;
+      const rawAmount = Number(plan?.[accountId]);
+      const amount = Number.isFinite(rawAmount) ? Math.max(0, Math.min(100000, rawAmount)) : 0;
+      totals[type] = (totals[type] || 0) + amount;
+    }
+    return totals;
+  }
+
+  const api = Object.freeze({ mapWithConcurrency, normalizeQuoteCurrency, groupMonthlyContributions });
   root.MoumixCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
