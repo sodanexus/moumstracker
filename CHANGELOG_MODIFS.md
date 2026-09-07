@@ -1,3 +1,20 @@
+# Moumix-Finance 2.2.0 — safe area et robustesse
+
+- safe area iPhone portée par l’en-tête lui-même, avec un fond opaque derrière la barre d’état ;
+- suppression du double décalage entre le padding général et l’en-tête sticky ;
+- navigation Synthèse, Portefeuille et Trajectoire maintenue en bas jusqu’à 820 px ;
+- scripts et feuilles de style versionnés pour éviter qu’un ancien cache reste affiché ;
+- ressources essentielles revalidées sur le réseau avec repli hors ligne ;
+- vérification des mises à jour au démarrage, au retour dans la PWA et toutes les quinze minutes ;
+- moteur de trajectoire extrait dans `assets/js/trajectory-core.js`, sans DOM ni stockage ;
+- tests dédiés pour les scénarios, l’inflation et les hypothèses personnalisées ;
+- achats, ventes et modifications unifiés autour d’un mécanisme de compensation vérifié ;
+- écriture de l’historique rendue idempotente pour éviter les doublons en cas de nouvel essai réseau ;
+- nouvelles tentatives bornées sur les écritures idempotentes lors d’une erreur temporaire ;
+- aucune migration SQL et aucune modification automatique des données existantes.
+
+---
+
 # Moumix-Finance 2.1.0 — plan mensuel personnalisé
 
 - nom public harmonisé en **Moumix-Finance** dans l’interface et la PWA ;

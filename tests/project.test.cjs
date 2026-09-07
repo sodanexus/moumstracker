@@ -18,7 +18,7 @@ test('le HTML ne contient plus de CSS ou JavaScript applicatif intégré', () =>
   const html = read('index.html');
   assert.doesNotMatch(html, /<style(?:\s|>)/i);
   assert.doesNotMatch(html, /<script>\s*[\s\S]*?<\/script>/i);
-  for (const file of ['assets/css/app.css', 'assets/css/v2.css', 'assets/js/core.js', 'assets/js/app.js', 'assets/js/history-import.js']) {
+  for (const file of ['assets/css/app.css', 'assets/css/v2.css', 'assets/js/core.js', 'assets/js/trajectory-core.js', 'assets/js/app.js', 'assets/js/history-import.js']) {
     assert.match(html, new RegExp(file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.ok(fs.existsSync(path.join(root, file)), `${file} doit exister`);
   }
@@ -49,7 +49,7 @@ test('la nouvelle identité est utilisée par le site et la PWA', () => {
   assert.match(html, /assets\/brand\/moumix-mark\.svg/);
   assert.match(worker, /assets\/brand\/moumix-mark\.svg/);
   assert.match(worker, /assets\/css\/v2\.css/);
-  assert.equal(JSON.parse(read('version.json')).version, '2.1.0');
+  assert.equal(JSON.parse(read('version.json')).version, '2.2.0');
 });
 
 test('la navigation et les actions suivent la nouvelle hiérarchie responsive', () => {
@@ -58,7 +58,7 @@ test('la navigation et les actions suivent la nouvelle hiérarchie responsive', 
   const app = read('assets/js/app.js');
   assert.match(html, /header-primary[\s\S]*brand-mark[\s\S]*navigation-bar/);
   assert.match(html, /app-menu-toggle/);
-  assert.match(css, /@media \(max-width: 768px\)[\s\S]*\.navigation-bar \{[\s\S]*position: fixed/);
+  assert.match(css, /@media \(max-width: 820px\)[\s\S]*\.navigation-bar \{[\s\S]*position: fixed/);
   assert.doesNotMatch(app, /mobileActionsMedia\.matches/);
   assert.doesNotMatch(html, /id="openAccountBtn"|id="openPositionBtn"|id="userMenu"/);
 });
@@ -66,10 +66,12 @@ test('la navigation et les actions suivent la nouvelle hiérarchie responsive', 
 test('la trajectoire explicite inflation, versements et rendement', () => {
   const html = read('index.html');
   const app = read('assets/js/app.js');
+  const trajectory = read('assets/js/trajectory-core.js');
   assert.match(html, /id="sim-inflation"/);
   assert.match(html, /id="sim-res-real-today"/);
   assert.match(html, /id="sim-formula-summary"/);
-  assert.match(app, /Math\.pow\(1 \+ inflation \/ 100, years\)/);
+  assert.match(app, /MoumixTrajectory\.presentValue/);
+  assert.match(trajectory, /Math\.pow\(1 \+ inflation, duration\)/);
   assert.match(app, /futurs versements/);
 });
 
@@ -109,6 +111,16 @@ test('les identifiants HTML sont uniques', () => {
   assert.deepEqual(ids.filter((id, index) => ids.indexOf(id) !== index), []);
 });
 
+test('toutes les ressources locales déclarées par le HTML existent', () => {
+  const html = read('index.html');
+  const refs = [...html.matchAll(/\s(?:src|href)="([^"]+)"/g)].map(match => match[1]);
+  for (const ref of refs) {
+    if (/^(?:https?:|data:|#)/i.test(ref)) continue;
+    const localPath = ref.split(/[?#]/, 1)[0].replace(/^\.\//, '');
+    assert.ok(fs.existsSync(path.join(root, localPath)), `${ref} doit pointer vers un fichier existant`);
+  }
+});
+
 test('les cotations frontend sont limitées, dédupliquées et mises en cache', () => {
   const app = read('assets/js/app.js');
   assert.match(app, /QUOTE_CONCURRENCY = 3/);
@@ -131,7 +143,38 @@ test('le service worker couvre les fichiers séparés et attend la validation ut
   const worker = read('sw.js');
   assert.match(worker, /SKIP_WAITING/);
   assert.doesNotMatch(worker, /cache\.addAll\(APP_SHELL\)[\s\S]{0,80}self\.skipWaiting/);
-  for (const file of ['assets/css/app.css', 'assets/css/v2.css', 'assets/js/core.js', 'assets/js/app.js', 'assets/js/history-import.js']) {
+  for (const file of ['assets/css/app.css', 'assets/css/v2.css', 'assets/js/core.js', 'assets/js/trajectory-core.js', 'assets/js/app.js', 'assets/js/history-import.js']) {
     assert.match(worker, new RegExp(file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
+  assert.match(worker, /cache: 'no-store'/);
+  assert.match(worker, /mustStayFresh/);
+});
+
+test('la safe area mobile appartient à l’en-tête et la navigation reste en bas', () => {
+  const css = read('assets/css/v2.css');
+  assert.match(css, /--safe-top: env\(safe-area-inset-top, 0px\)/);
+  assert.match(css, /\.app > header \{[\s\S]*?top: 0;[\s\S]*?padding: calc\(var\(--safe-top\) \+ 7px\)/);
+  assert.match(css, /\.navigation-bar \{[\s\S]*?position: fixed;[\s\S]*?inset: auto 0 0 0/);
+});
+
+test('les versions publiques et les ressources versionnées sont cohérentes', () => {
+  const html = read('index.html');
+  const worker = read('sw.js');
+  const version = JSON.parse(read('version.json')).version;
+  const pkg = JSON.parse(read('package.json'));
+  const lock = JSON.parse(read('package-lock.json'));
+  assert.equal(version, '2.2.0');
+  assert.equal(pkg.version, version);
+  assert.equal(lock.version, version);
+  assert.equal(lock.packages[''].version, version);
+  assert.match(html, new RegExp(`moumix-version" content="${version.replaceAll('.', '\\.')}`));
+  assert.match(html, new RegExp(`assets/css/v2\\.css\\?v=${version.replaceAll('.', '\\.')}`));
+  assert.match(worker, new RegExp(`APP_VERSION = '${version.replaceAll('.', '\\.')}'`));
+});
+
+test('achat, vente et modification partagent la même compensation technique', () => {
+  const app = read('assets/js/app.js');
+  assert.ok((app.match(/MoumixCore\.runCompensatedOperation/g) || []).length >= 3);
+  assert.match(app, /from\('transactions'\)\.upsert\(row, \{ onConflict: 'id' \}\)/);
+  assert.doesNotMatch(app, /from\('transactions'\)\.insert\(row\)/);
 });

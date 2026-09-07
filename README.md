@@ -107,7 +107,7 @@ Le taux **USD/EUR** reste présent car il est utile à la compréhension des pos
 
 ## Version en cours
 
-**2.1.0 — septembre 2026**
+**2.2.0 — septembre 2026**
 
 Cette version reconstruit l’expérience sans migrer ni réécrire la base existante :
 
@@ -120,6 +120,14 @@ Cette version reconstruit l’expérience sans migrer ni réécrire la base exis
 - total mensuel recalculé automatiquement et préférences isolées par utilisateur sur l’appareil ;
 - lecture séparée du capital existant, des futurs versements et des rendements estimés ;
 - équivalent en euros d’aujourd’hui calculé avec une inflation modifiable ;
+- zone sûre supérieure intégrée à l’en-tête iPhone, sans double décalage au défilement ;
+- navigation mobile verrouillée en bas jusqu’aux petits formats tablette ;
+- moteur de trajectoire isolé du DOM et couvert par des tests dédiés ;
+- mécanisme commun de compensation pour les achats, ventes et modifications ;
+- historique de transaction idempotent pour éviter les doublons après une coupure réseau ;
+- nouvelles tentatives automatiques limitées pour les écritures temporairement refusées ;
+- ressources versionnées et revalidation réseau afin qu’un ancien CSS ne reste plus bloqué dans la PWA ;
+- recherche de mise à jour au retour dans l’application et toutes les quinze minutes ;
 - nouvelles icônes PWA ;
 - mascotte et cotations défilantes retirées du HTML et du JavaScript ;
 - modèle Supabase et historique existants conservés.
@@ -133,6 +141,7 @@ Cette version reconstruit l’expérience sans migrer ni réécrire la base exis
 | `assets/css/v2.css` | Identité et hiérarchie de la version 2 |
 | `assets/brand/moumix-mark.svg` | Logo vectoriel |
 | `assets/js/core.js` | Fonctions techniques pures et testables |
+| `assets/js/trajectory-core.js` | Formules et hypothèses de trajectoire, sans dépendance à l’interface |
 | `assets/js/app.js` | Authentification, données et interface |
 | `assets/js/history-import.js` | Import de l’historique patrimonial |
 | Supabase | Authentification, PostgreSQL et règles RLS |
@@ -151,6 +160,8 @@ Pour une base Moumix-Finance déjà utilisée :
 2. attendre la fin du déploiement GitHub Pages ;
 3. fermer puis rouvrir la web app ;
 4. accepter la proposition de mise à jour si elle apparaît.
+
+À partir de la 2.2, les feuilles de style et scripts portent aussi leur numéro de version. Même si l’ancien service worker est encore actif, il ne peut plus resservir silencieusement le CSS d’une version précédente.
 
 **Aucune migration SQL n’est nécessaire pour la version 2.** Ne relancez pas `supabase_shema.sql` sur une base déjà en service. Les comptes, positions, transactions, prélèvements, objectifs et snapshots existants sont relus tels quels.
 
@@ -187,7 +198,7 @@ L’export JSON permet de conserver une copie locale des comptes, positions, tra
 
 ### Ancien plan patrimonial privé
 
-La version 2.1 n’utilise plus la table expérimentale `private_projection_plan`. Si son ancien script d’activation a été exécuté, cette table peut rester sans perturber l’application, mais elle conserve inutilement le texte personnel qui y avait été enregistré.
+Depuis la version 2.1, l’application n’utilise plus la table expérimentale `private_projection_plan`. Si son ancien script d’activation a été exécuté, cette table peut rester sans perturber l’application, mais elle conserve inutilement le texte personnel qui y avait été enregistré.
 
 Le script optionnel `scripts/optional/remove-private-projection-plan.sql` supprime uniquement cette table abandonnée et sa fonction de mise à jour. Il ne doit être exécuté que si ces anciennes informations ne sont plus utiles. Il ne touche pas à `goals` ni à `patrimoine_history`.
 

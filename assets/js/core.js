@@ -41,7 +41,53 @@
     return totals;
   }
 
-  const api = Object.freeze({ mapWithConcurrency, normalizeQuoteCurrency, groupMonthlyContributions });
+  async function runCompensatedOperation({ commit, audit, rollback }) {
+    if (typeof commit !== 'function' || typeof audit !== 'function' || typeof rollback !== 'function') {
+      throw new TypeError('Opération compensée incomplète');
+    }
+
+    const committed = await commit();
+    try {
+      const audited = await audit(committed);
+      return { committed, audited };
+    } catch (operationError) {
+      try {
+        await rollback(committed, operationError);
+      } catch (rollbackError) {
+        const error = new Error('operation_rollback_failed');
+        error.name = 'MoumixRollbackError';
+        error.operationError = operationError;
+        error.rollbackError = rollbackError;
+        throw error;
+      }
+      throw operationError;
+    }
+  }
+
+  async function retryOperation(task, options = {}) {
+    if (typeof task !== 'function') throw new TypeError('Opération à retenter absente');
+    const attempts = Math.max(1, Math.min(5, Number(options.attempts) || 1));
+    const delays = Array.isArray(options.delays) ? options.delays : [];
+    const shouldRetry = typeof options.shouldRetry === 'function' ? options.shouldRetry : () => true;
+
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      try {
+        return await task(attempt);
+      } catch (error) {
+        if (attempt >= attempts - 1 || !shouldRetry(error, attempt)) throw error;
+        const delay = Math.max(0, Number(delays[Math.min(attempt, delays.length - 1)]) || 0);
+        if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  const api = Object.freeze({
+    mapWithConcurrency,
+    normalizeQuoteCurrency,
+    groupMonthlyContributions,
+    runCompensatedOperation,
+    retryOperation,
+  });
   root.MoumixCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

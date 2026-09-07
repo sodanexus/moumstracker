@@ -398,13 +398,30 @@ function waitForDataRetry(ms, signal) {
 // Chaque écriture cible uniquement la ligne concernée. On ne déduit jamais une
 // suppression de l'état local complet : un onglet ancien ne peut donc plus
 // supprimer des données ajoutées depuis un autre appareil.
+function isTransientDbError(error) {
+  const status = Number(error?.status || error?.statusCode || 0);
+  const message = String(error?.message || '');
+  return status === 408 || status === 425 || status === 429 || status >= 500 ||
+    /fetch|network|timeout|temporar|JWT issued at future/i.test(message);
+}
+
+function retryDbWrite(operation) {
+  return MoumixCore.retryOperation(operation, {
+    attempts: 3,
+    delays: [350, 1000],
+    shouldRetry: isTransientDbError,
+  });
+}
+
 function accountDbRow(a) {
   return { id: a.id, user_id: currentUser.id, name: a.name, type: a.type, solde: a.solde ?? null };
 }
 
 async function saveAccount(account) {
-  const { error } = await sb.from('accounts').upsert(accountDbRow(account));
-  if (error) throw error;
+  await retryDbWrite(async () => {
+    const { error } = await sb.from('accounts').upsert(accountDbRow(account));
+    if (error) throw error;
+  });
 }
 
 function positionDbRow(p) {
@@ -418,8 +435,10 @@ function positionDbRow(p) {
 }
 
 async function savePosition(position) {
-  const { error } = await sb.from('positions').upsert(positionDbRow(position));
-  if (error) throw error;
+  await retryDbWrite(async () => {
+    const { error } = await sb.from('positions').upsert(positionDbRow(position));
+    if (error) throw error;
+  });
 }
 
 async function savePositionPrices(changedPositions, userId) {
@@ -452,12 +471,14 @@ async function savePositionPrices(changedPositions, userId) {
 }
 
 async function savePrelevement(prelevement) {
-  const { error } = await sb.from('prelevements').upsert({
-    id: prelevement.id, user_id: currentUser.id, name: prelevement.name,
-    amount: prelevement.amount, freq: prelevement.freq, cat: prelevement.cat,
-    split: prelevement.split || 1
+  await retryDbWrite(async () => {
+    const { error } = await sb.from('prelevements').upsert({
+      id: prelevement.id, user_id: currentUser.id, name: prelevement.name,
+      amount: prelevement.amount, freq: prelevement.freq, cat: prelevement.cat,
+      split: prelevement.split || 1
+    });
+    if (error) throw error;
   });
-  if (error) throw error;
 }
 
 async function saveTransaction(tx) {
@@ -468,18 +489,24 @@ async function saveTransaction(tx) {
   };
   if (tx.oldQty  !== undefined) row.old_qty   = tx.oldQty;
   if (tx.oldPrice !== undefined) row.old_price = tx.oldPrice;
-  const { error } = await sb.from('transactions').insert(row);
-  if (error) throw error;
+  // L'identifiant est créé avant l'écriture : un nouvel essai après une coupure
+  // réseau ne peut donc pas dupliquer la ligne d'historique.
+  await retryDbWrite(async () => {
+    const { error } = await sb.from('transactions').upsert(row, { onConflict: 'id' });
+    if (error) throw error;
+  });
 }
 
 async function savePatrimoineHistory() {
   const uid = currentUser.id;
   const last = patrimoineHistory[patrimoineHistory.length - 1];
   if (!last) return;
-  const { error } = await sb.from('patrimoine_history').upsert({
-    user_id: uid, date: last.date, value: last.value
-  }, { onConflict: 'user_id,date' });
-  if (error) throw error;
+  await retryDbWrite(async () => {
+    const { error } = await sb.from('patrimoine_history').upsert({
+      user_id: uid, date: last.date, value: last.value
+    }, { onConflict: 'user_id,date' });
+    if (error) throw error;
+  });
 }
 
 async function deleteAccountDB(id) {
@@ -1033,43 +1060,36 @@ async function confirmPosition() {
       const currentEur = selectedTicker.priceEur ?? selectedTicker.price ?? 0;
       const existing = positions.find(p => p.symbol === selectedTicker.symbol && p.accountId === accountId);
       const previous = existing ? { ...existing } : null;
-      const target = existing || {
-        id: crypto.randomUUID(), symbol: selectedTicker.symbol, name: selectedTicker.name,
-        exchange: selectedTicker.exchange || '', currency: selectedTicker.currency || 'EUR',
-        accountId, qty, price: pru, current: currentEur, lastUpdated: Date.now()
-      };
-
+      let target;
       if (existing) {
         const newPRU = existing.price > 0
           ? (existing.qty * existing.price + qty * pru) / (existing.qty + qty)
           : 0;
-        existing.qty = parseFloat((existing.qty + qty).toFixed(8));
-        existing.price = parseFloat(newPRU.toFixed(10));
-        existing.current = currentEur;
-        existing.lastUpdated = Date.now();
+        target = {
+          ...existing,
+          qty: parseFloat((existing.qty + qty).toFixed(8)),
+          price: parseFloat(newPRU.toFixed(10)),
+          current: currentEur,
+          lastUpdated: Date.now(),
+        };
+      } else {
+        target = {
+          id: crypto.randomUUID(), symbol: selectedTicker.symbol, name: selectedTicker.name,
+          exchange: selectedTicker.exchange || '', currency: selectedTicker.currency || 'EUR',
+          accountId, qty, price: pru, current: currentEur, lastUpdated: Date.now()
+        };
       }
 
       const tx = { id: crypto.randomUUID(), type: 'buy', symbol: selectedTicker.symbol, name: selectedTicker.name, qty, price: pru, accountName: accName, ts: Date.now() };
-      let positionSaved = false;
-      try {
-        await savePosition(target);
-        positionSaved = true;
-        await saveTransaction(tx);
-      } catch(e) {
-        if (existing) Object.assign(existing, previous);
-        if (positionSaved) {
-          try {
-            if (existing) await savePosition(existing);
-            else await deletePositionDB(target.id);
-          } catch(rollbackError) {
-            console.error('[Moumix] rollback achat impossible:', rollbackError);
-            showToast('Échec du rétablissement automatique : rechargez la page avant toute autre action.', 'error');
-          }
-        }
-        throw e;
-      }
+      await MoumixCore.runCompensatedOperation({
+        commit: () => savePosition(target),
+        audit: () => saveTransaction(tx),
+        rollback: () => existing ? savePosition(previous) : deletePositionDB(target.id),
+      });
 
-      if (!existing) {
+      if (existing) {
+        Object.assign(existing, target);
+      } else {
         positions.push(target);
         positionHistory[target.id] = [];
         fetchHistory(target.symbol).then(hist => {
@@ -1090,32 +1110,22 @@ async function confirmPosition() {
       const previous = { ...existing };
       const fullSell = Math.abs(qty - existing.qty) < 0.000001;
       const tx = { id: crypto.randomUUID(), type: 'sell', symbol: existing.symbol, name: existing.name, qty, price: sellPrice, accountName: accName, ts: Date.now() };
-      let positionSaved = false;
+      const target = fullSell ? null : {
+        ...existing,
+        qty: parseFloat((existing.qty - qty).toFixed(8)),
+      };
 
-      try {
-        if (fullSell) {
-          await deletePositionDB(existing.id);
-        } else {
-          existing.qty = parseFloat((existing.qty - qty).toFixed(8));
-          await savePosition(existing);
-        }
-        positionSaved = true;
-        await saveTransaction(tx);
-      } catch(e) {
-        Object.assign(existing, previous);
-        if (positionSaved) {
-          try { await savePosition(existing); }
-          catch(rollbackError) {
-            console.error('[Moumix] rollback vente impossible:', rollbackError);
-            showToast('Échec du rétablissement automatique : rechargez la page avant toute autre action.', 'error');
-          }
-        }
-        throw e;
-      }
+      await MoumixCore.runCompensatedOperation({
+        commit: () => fullSell ? deletePositionDB(existing.id) : savePosition(target),
+        audit: () => saveTransaction(tx),
+        rollback: () => savePosition(previous),
+      });
 
       if (fullSell) {
         positions = positions.filter(p => p.id !== existing.id);
         delete positionHistory[existing.id];
+      } else {
+        Object.assign(existing, target);
       }
       transactions.unshift(tx);
       if (transactions.length > 500) transactions.length = 500;
@@ -1123,7 +1133,12 @@ async function confirmPosition() {
     }
   } catch(e) {
     console.error('[Moumix] confirmPosition error:', e);
-    showToast(e.message && !/failed|network|fetch/i.test(e.message) ? e.message : 'Erreur de sauvegarde de la transaction.', 'error');
+    if (e.name === 'MoumixRollbackError') {
+      console.error('[Moumix] rétablissement impossible:', e.rollbackError);
+      showToast('Synchronisation incertaine : rechargez la page avant toute autre action.', 'error');
+    } else {
+      showToast(e.message && !/failed|network|fetch/i.test(e.message) ? e.message : 'Erreur de sauvegarde de la transaction.', 'error');
+    }
     renderAll();
     return;
   } finally {
@@ -1830,12 +1845,14 @@ async function persistGoals(goal, isDelete = false) {
       if (error) throw error;
       if (!data) throw new Error('Suppression de l’objectif non confirmée');
     } else {
-      const { error } = await sb.from('goals').upsert({
-        id: goal.id, user_id: currentUser.id,
-        name: goal.name, target: goal.target,
-        current: goal.current, emoji: goal.emoji
+      await retryDbWrite(async () => {
+        const { error } = await sb.from('goals').upsert({
+          id: goal.id, user_id: currentUser.id,
+          name: goal.name, target: goal.target,
+          current: goal.current, emoji: goal.emoji
+        });
+        if (error) throw error;
       });
-      if (error) throw error;
     }
   } catch(e) {
     console.error('[Moumix] persistGoals error:', e);
@@ -2886,25 +2903,10 @@ let simData = [];
 let simDataPess = [];
 let simDataOpti = [];
 
-// Hypothèses indicatives, modifiables dans l'interface. Elles restent locales à
-// la page : aucune valeur de simulation n'est écrite dans Supabase.
-const SIM_DEFAULT_ASSUMPTIONS = Object.freeze({
-  PEA:    { rate: 7, spread: 4 },
-  CTO:    { rate: 7, spread: 4 },
-  PEE:    { rate: 5, spread: 3 },
-  PER:    { rate: 5, spread: 3 },
-  AV:     { rate: 3, spread: 1.5 },
-  Crypto: { rate: 8, spread: 10 },
-  Livret: { rate: 2, spread: 1 },
-  Immo:   { rate: 3, spread: 2 },
-  Autre:  { rate: 0, spread: 1 },
-});
-const SIM_TYPE_LABELS = Object.freeze({
-  PEA: 'PEA', CTO: 'CTO', PEE: 'Épargne salariale', PER: 'PER',
-  AV: 'Assurance-vie', Crypto: 'Crypto', Livret: 'Livrets',
-  Immo: 'Immobilier', Autre: 'Autre',
-});
-const SIM_TYPE_ORDER = Object.freeze(['PEA','CTO','PEE','PER','AV','Crypto','Livret','Immo','Autre']);
+// Les hypothèses et les formules vivent dans trajectory-core.js. L'interface
+// ne conserve ici que les réglages de l'utilisateur et leur rendu.
+const SIM_TYPE_LABELS = MoumixTrajectory.TYPE_LABELS;
+const SIM_TYPE_ORDER = MoumixTrajectory.TYPE_ORDER;
 const SIM_PLAN_STORAGE_PREFIX = 'moumix-finance:trajectory-plan:';
 let simRateOverrides = {};
 let simContributionPlan = {};
@@ -2919,9 +2921,7 @@ function simDomKey(value) {
   return Array.from(String(value || 'Autre')).map(char => char.codePointAt(0).toString(36)).join('-');
 }
 function simAssumption(type) {
-  const fallback = SIM_DEFAULT_ASSUMPTIONS[type] || { rate: 4, spread: 3 };
-  const override = simRateOverrides[type];
-  return { rate: Number.isFinite(override) ? override : fallback.rate, spread: fallback.spread };
+  return MoumixTrajectory.assumptionFor(type, simRateOverrides);
 }
 
 function simEnsureContributionPlan() {
@@ -3151,69 +3151,12 @@ function simMonthlyContributionsByType(buckets) {
   return amounts;
 }
 
-function simScenarioRatePct(type, scenario) {
-  const assumption = simAssumption(type);
-  const delta = scenario === 'pess' ? -assumption.spread : scenario === 'opti' ? assumption.spread : 0;
-  return Math.max(-95, Math.min(100, assumption.rate + delta));
-}
-
 function simWeightedRatePct(buckets, monthlyByType, years, scenario) {
-  if (!buckets.length) return 0;
-  let basisTotal = 0;
-  let weightedTotal = 0;
-  buckets.forEach(bucket => {
-    // La moitié des versements futurs approxime leur exposition moyenne sur la période.
-    const futureContributions = (monthlyByType.get(bucket.type) || 0) * 12 * years;
-    const basis = bucket.value + futureContributions / 2;
-    basisTotal += basis;
-    weightedTotal += basis * simScenarioRatePct(bucket.type, scenario);
-  });
-  return basisTotal > 0 ? weightedTotal / basisTotal : 0;
+  return MoumixTrajectory.weightedRatePct(buckets, monthlyByType, years, scenario, simRateOverrides);
 }
 
 function simComputePortfolio(buckets, monthlyByType, years, scenario) {
-  const states = buckets.map(bucket => {
-    const annualRate = simScenarioRatePct(bucket.type, scenario) / 100;
-    return {
-      type: bucket.type,
-      label: bucket.label,
-      start: bucket.value,
-      capital: bucket.value,
-      contributed: 0,
-      annualRate,
-      monthlyRate: Math.pow(1 + annualRate, 1 / 12) - 1,
-      monthlyContribution: monthlyByType.get(bucket.type) || 0,
-    };
-  });
-  const initial = states.reduce((sum, state) => sum + state.start, 0);
-  const appliedMonthly = states.reduce((sum, state) => sum + state.monthlyContribution, 0);
-  let totalInvested = initial;
-  const data = [{ year: 0, capital: initial, invested: initial, interest: 0 }];
-
-  for (let year = 1; year <= years; year++) {
-    for (let month = 0; month < 12; month++) {
-      states.forEach(state => {
-        state.capital = state.capital * (1 + state.monthlyRate) + state.monthlyContribution;
-        state.contributed += state.monthlyContribution;
-      });
-      totalInvested += appliedMonthly;
-    }
-    const capital = states.reduce((sum, state) => sum + state.capital, 0);
-    data.push({ year, capital, invested: totalInvested, interest: capital - totalInvested });
-  }
-
-  const final = states.reduce((sum, state) => sum + state.capital, 0);
-  const finalBreakdown = states.map(state => ({
-    type: state.type,
-    label: state.label,
-    start: state.start,
-    contributed: state.contributed,
-    invested: state.start + state.contributed,
-    final: state.capital,
-    annualRate: state.annualRate,
-  })).sort((a, b) => b.final - a.final);
-  const monthlyGrowth = states.reduce((sum, state) => sum + state.capital * state.monthlyRate, 0);
-  return { data, final, totalInvested, totalInterest: final - totalInvested, monthlyGrowth, finalBreakdown };
+  return MoumixTrajectory.computePortfolio(buckets, monthlyByType, years, scenario, simRateOverrides);
 }
 
 let _simUpdateTimer = null;
@@ -3302,7 +3245,7 @@ function simUpdate() {
   // Jauge composition (réaliste)
   const { final, totalInvested, totalInterest } = resReal;
   const totalMonthly = totalInvested - initial;
-  const realToday = final / Math.pow(1 + inflation / 100, years);
+  const realToday = MoumixTrajectory.presentValue(final, inflation, years);
   const realTodayEl = document.getElementById('sim-res-real-today');
   if (realTodayEl) realTodayEl.textContent = `≈ ${simFmt(realToday)} en euros d’aujourd’hui`;
   const formulaSummary = document.getElementById('sim-formula-summary');
@@ -3638,29 +3581,32 @@ async function confirmEditPosition() {
   const btn = document.getElementById('editPositionSaveBtn');
   btn.disabled = true;
   const oldQty = p.qty, oldPrice = p.price;
-  p.qty = parseFloat(qty.toFixed(8));
-  p.price = parseFloat(price.toFixed(10));
+  const previous = { ...p };
+  const target = {
+    ...p,
+    qty: parseFloat(qty.toFixed(8)),
+    price: parseFloat(price.toFixed(10)),
+  };
   const accName = getAccountName(p.accountId);
-  const tx = { id: crypto.randomUUID(), type: 'edit', symbol: p.symbol, name: p.name, qty: p.qty, price: p.price, oldQty, oldPrice, accountName: accName, ts: Date.now() };
-  let positionSaved = false;
+  const tx = { id: crypto.randomUUID(), type: 'edit', symbol: p.symbol, name: p.name, qty: target.qty, price: target.price, oldQty, oldPrice, accountName: accName, ts: Date.now() };
   try {
-    await savePosition(p);
-    positionSaved = true;
-    await saveTransaction(tx);
+    await MoumixCore.runCompensatedOperation({
+      commit: () => savePosition(target),
+      audit: () => saveTransaction(tx),
+      rollback: () => savePosition(previous),
+    });
   } catch(e) {
     console.error('[Moumix] confirmEditPosition error:', e);
-    p.qty = oldQty; p.price = oldPrice;
-    if (positionSaved) {
-      try { await savePosition(p); }
-      catch(rollbackError) {
-        console.error('[Moumix] rollback modification impossible:', rollbackError);
-        showToast('Échec du rétablissement automatique : rechargez la page.', 'error');
-      }
+    if (e.name === 'MoumixRollbackError') {
+      console.error('[Moumix] rétablissement modification impossible:', e.rollbackError);
+      showToast('Synchronisation incertaine : rechargez la page avant toute autre action.', 'error');
+    } else {
+      showToast('Erreur sauvegarde modification.', 'error');
     }
-    showToast('Erreur sauvegarde modification.', 'error');
     btn.disabled = false;
     return;
   }
+  Object.assign(p, target);
   transactions.unshift(tx); if (transactions.length > 500) transactions.length = 500;
   btn.disabled = false;
   closeEditPosition();
@@ -3672,6 +3618,7 @@ async function confirmEditPosition() {
 // ─── PWA ────────────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => {
+    const appVersion = document.querySelector('meta[name="moumix-version"]')?.content || 'current';
     let reloadingForUpdate = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (reloadingForUpdate) return;
@@ -3679,7 +3626,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       location.reload();
     });
 
-    navigator.serviceWorker.register('./sw.js').then(registration => {
+    navigator.serviceWorker.register(`./sw.js?v=${encodeURIComponent(appVersion)}`, { updateViaCache: 'none' }).then(registration => {
       const offerUpdate = worker => {
         if (!navigator.serviceWorker.controller || !worker) return;
         showAppUpdatePrompt(() => worker.postMessage({ type: 'SKIP_WAITING' }));
@@ -3693,8 +3640,21 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
         });
       });
 
-      // Vérifie aussi les mises à jour si la PWA reste ouverte longtemps.
-      setInterval(() => registration.update().catch(() => {}), 60 * 60 * 1000);
+      // Vérifie au démarrage, au retour dans l'app et périodiquement. iOS peut
+      // conserver une PWA en mémoire plusieurs jours sans recharger sa page.
+      let lastUpdateCheck = 0;
+      const checkForUpdate = () => {
+        const now = Date.now();
+        if (now - lastUpdateCheck < 60 * 1000) return;
+        lastUpdateCheck = now;
+        registration.update().catch(() => {});
+      };
+      setTimeout(checkForUpdate, 1500);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') checkForUpdate();
+      });
+      window.addEventListener('pageshow', checkForUpdate);
+      setInterval(checkForUpdate, 15 * 60 * 1000);
     }).catch(error => console.warn('[Moumix] Service worker indisponible:', error));
   });
 }

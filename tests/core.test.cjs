@@ -48,3 +48,60 @@ test('le plan mensuel est regroupé correctement par poche', () => {
   assert.deepEqual({ ...grouped }, { Livret: 1000, PEA: 425, CTO: 50, Crypto: 108 });
   assert.equal(Object.values(grouped).reduce((sum, amount) => sum + amount, 0), 1583);
 });
+
+test('une erreur d’historique déclenche la compensation après la position', async () => {
+  const calls = [];
+  await assert.rejects(
+    core.runCompensatedOperation({
+      commit: async () => { calls.push('position'); return 'ok'; },
+      audit: async () => { calls.push('historique'); throw new Error('audit indisponible'); },
+      rollback: async committed => { calls.push(`retour:${committed}`); },
+    }),
+    /audit indisponible/
+  );
+  assert.deepEqual(calls, ['position', 'historique', 'retour:ok']);
+});
+
+test('une erreur avant écriture ne lance jamais de compensation', async () => {
+  let rollbackCalled = false;
+  await assert.rejects(
+    core.runCompensatedOperation({
+      commit: async () => { throw new Error('position refusée'); },
+      audit: async () => {},
+      rollback: async () => { rollbackCalled = true; },
+    }),
+    /position refusée/
+  );
+  assert.equal(rollbackCalled, false);
+});
+
+test('un échec de compensation est distingué explicitement', async () => {
+  await assert.rejects(
+    core.runCompensatedOperation({
+      commit: async () => {},
+      audit: async () => { throw new Error('historique refusé'); },
+      rollback: async () => { throw new Error('retour refusé'); },
+    }),
+    error => error.name === 'MoumixRollbackError' && error.operationError.message === 'historique refusé'
+  );
+});
+
+test('une écriture temporairement refusée est retentée sans dépasser la limite', async () => {
+  let attempts = 0;
+  const value = await core.retryOperation(async () => {
+    attempts++;
+    if (attempts < 3) throw new Error('temporaire');
+    return 42;
+  }, { attempts: 3, delays: [0, 0], shouldRetry: () => true });
+  assert.equal(value, 42);
+  assert.equal(attempts, 3);
+});
+
+test('une erreur définitive n’est pas retentée', async () => {
+  let attempts = 0;
+  await assert.rejects(core.retryOperation(async () => {
+    attempts++;
+    throw new Error('définitive');
+  }, { attempts: 3, shouldRetry: () => false }), /définitive/);
+  assert.equal(attempts, 1);
+});

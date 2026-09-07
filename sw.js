@@ -1,16 +1,18 @@
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 const CACHE_NAME = `moumix-shell-${APP_VERSION}`;
+const versioned = path => `${path}?v=${APP_VERSION}`;
 const APP_SHELL = [
   './',
   './index.html',
-  './version.json',
-  './manifest.json',
-  './assets/css/app.css',
-  './assets/css/v2.css',
+  versioned('./version.json'),
+  versioned('./manifest.json'),
+  versioned('./assets/css/app.css'),
+  versioned('./assets/css/v2.css'),
   './assets/brand/moumix-mark.svg',
-  './assets/js/core.js',
-  './assets/js/app.js',
-  './assets/js/history-import.js',
+  versioned('./assets/js/core.js'),
+  versioned('./assets/js/trajectory-core.js'),
+  versioned('./assets/js/app.js'),
+  versioned('./assets/js/history-import.js'),
   './apple-touch-icon.png',
   './icon-192.png',
   './icon-512.png'
@@ -41,15 +43,24 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (request.mode === 'navigate') {
+  const pathname = url.pathname;
+  const mustStayFresh = request.mode === 'navigate' ||
+    request.destination === 'script' || request.destination === 'style' ||
+    pathname.endsWith('/version.json') || pathname.endsWith('/manifest.json');
+
+  if (mustStayFresh) {
     event.respondWith(
-      fetch(request)
+      fetch(new Request(request, { cache: 'no-store' }))
         .then(response => {
-          const copy = response.clone();
-          event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy)));
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const cacheKey = request.mode === 'navigate' ? './index.html' : request;
+          event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(cacheKey, response.clone())));
           return response;
         })
-        .catch(async () => (await caches.match('./index.html')) || caches.match('./'))
+        .catch(async () => {
+          if (request.mode === 'navigate') return (await caches.match('./index.html')) || caches.match('./');
+          return (await caches.match(request)) || Response.error();
+        })
     );
     return;
   }
