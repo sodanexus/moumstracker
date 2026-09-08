@@ -91,8 +91,9 @@ Sur ordinateur, le logo, la navigation et le taux USD/EUR partagent un en-tête 
 
 - la navigation principale est ancrée en bas sur mobile et respecte les zones sûres de l’iPhone ;
 - les actions d’ajout et le compte personnel sont regroupés derrière un hamburger discret ;
-- le pincement à deux doigts reste disponible ;
-- les champs ne déclenchent pas de zoom automatique au focus.
+- le taux USD/EUR reste visible sous une forme très discrète au-dessus du contenu ;
+- la page reste fixe horizontalement et le zoom mobile est désactivé ;
+- les champs restent à 16 px afin d’éviter tout changement d’échelle au focus.
 
 ## Ce qui a volontairement disparu
 
@@ -106,29 +107,25 @@ Le taux **USD/EUR** reste présent car il est utile à la compréhension des pos
 
 ## Version en cours
 
-**2.4.1 — septembre 2026**
+**2.5.0 — septembre 2026**
 
-Cette version adopte le nom **Moobank** sans migrer ni réécrire la base existante :
+Cette version resserre l’expérience mobile et ajoute un filet de sécurité lorsque Supabase ou Yahoo Finance répond momentanément mal :
 
-- identité, manifeste, cache PWA, exports et workflow harmonisés sous le nom Moobank ;
-- logo sans tuile de fond dans l’interface, la connexion et le README ;
-- allocation ramenée aux deux lectures utiles : poches et actifs ;
-- vue redondante des comptes remplacée par trois actualités maximum ;
-- résultats et composition de la trajectoire réunis dans une seule carte compacte ;
-- navigation Synthèse, Portefeuille et Trajectoire fixée en bas sur mobile ;
-- zones sûres haute et basse de l’iPhone conservées ;
-- ancienne règle mobile supérieure supprimée pour que la navigation ne puisse plus remonter en haut ;
-- flou retiré de l’en-tête mobile : sur Safari, il capturait le positionnement fixe de la navigation et la maintenait en haut ;
-- en-tête mobile supprimé pour rendre immédiatement l’espace au contenu ;
-- menu déplacé dans la barre basse comme quatrième bouton, représenté par le logo Moobank ;
-- géométrie commune aux trois vues et transitions remplacées par un fondu uniforme sans glissement ni changement d’échelle ;
-- taille du texte stabilisée sur iOS et champs maintenus à 16 px pour éviter le zoom automatique au focus ;
-- graphique de trajectoire recalculé selon sa taille mobile réelle, sans marges latérales artificielles ;
-- courbe de trajectoire replacée sous les résultats dans la colonne de droite sur ordinateur ;
-- libellés « Central » et « Rythme attendu » séparés sans chevauchement ;
-- ancien plan mensuel local automatiquement repris sous la nouvelle identité ;
-- cotations, snapshots, compensations d’écriture et mises à jour PWA de la 2.2 conservés ;
-- modèle Supabase, comptes, positions, transactions et historique inchangés.
+- taux USD/EUR conservé discrètement sur mobile ;
+- textes secondaires raccourcis ;
+- poches présentées sur deux colonnes sur téléphone ;
+- tableau des positions remplacé sur mobile par des cartes compactes et dépliables ;
+- largeur verrouillée, défilement horizontal et zoom mobile désactivés ;
+- ajout des types `Livret A`, `LDDS` et `Autre livret`, avec maintien du type historique `Livret` pour ne casser aucune ligne existante ;
+- quatre tentatives bornées sur les lectures et écritures Supabase temporaires ;
+- nouvelles tentatives et limitation de concurrence conservées pour les cotations ;
+- dernière situation valide mise en cache localement, isolée par utilisateur et affichée en lecture seule avec un indicateur explicite ;
+- validations des montants, identifiants, dates et types avant les sauvegardes ;
+- snapshots confirmés et idempotents sur la paire utilisateur/date ;
+- écran PWA dédié avec les choix « Plus tard » et « Mettre à jour » ;
+- tests automatisés des parcours connexion, ajout, modification, suppression et actualisation.
+
+Les comptes, positions, transactions, prélèvements, objectifs et snapshots existants ne sont ni renommés ni recalculés.
 
 ## Architecture
 
@@ -142,6 +139,7 @@ Cette version adopte le nom **Moobank** sans migrer ni réécrire la base exista
 | `assets/js/trajectory-core.js` | Formules et hypothèses de trajectoire, sans dépendance à l’interface |
 | `assets/js/app.js` | Authentification, données et interface |
 | `assets/js/history-import.js` | Import de l’historique patrimonial |
+| `tests/flows.test.cjs` | Parcours critiques simulés avec une base en mémoire |
 | Supabase | Authentification, PostgreSQL et règles RLS |
 | Yahoo Finance | Cotations nécessaires aux positions et au taux USD/EUR |
 | Cloudflare Worker | Proxy CORS et solution de repli pour les cotations |
@@ -161,7 +159,9 @@ Pour une base Moobank déjà utilisée :
 
 À partir de la 2.2, les feuilles de style et scripts portent aussi leur numéro de version. Même si l’ancien service worker est encore actif, il ne peut plus resservir silencieusement le CSS d’une version précédente.
 
-**Aucune migration SQL n’est nécessaire pour la version 2.** Ne relancez pas `supabase_shema.sql` sur une base déjà en service. Les comptes, positions, transactions, prélèvements, objectifs et snapshots existants sont relus tels quels.
+Ne relancez jamais `supabase_shema.sql` sur une base déjà en service. Les données existantes sont relues telles quelles.
+
+Pour créer des comptes portant les trois nouveaux libellés, exécutez une seule fois le script ciblé `scripts/optional/enable-savings-account-types.sql` dans l’éditeur SQL Supabase. Il remplace uniquement la contrainte de validation du type de compte : aucune table ni ligne n’est supprimée. Sans ce script, le reste de la version fonctionne normalement, mais Supabase refusera la création d’un `Livret A`, d’un `LDDS` ou d’un `Autre livret`.
 
 ### Passage du dépôt à Moobank
 
@@ -194,7 +194,7 @@ La clé `service_role` ne doit jamais être placée dans le frontend.
 
 Le workflow GitHub Actions récupère les positions des utilisateurs autorisés, mutualise les symboles communs et limite le nombre de requêtes simultanées. Les réponses non JSON, les limitations temporaires et les délais d’attente sont retentés avec temporisation.
 
-Un snapshot n’est enregistré que si toutes les cotations et conversions requises sont disponibles. Cela évite qu’une panne de fournisseur apparaisse comme une chute artificielle du patrimoine.
+Les lectures et l’écriture Supabase sont également retentées lorsqu’une erreur est temporaire. Un snapshot n’est enregistré que si toutes les cotations et conversions requises sont disponibles. L’écriture utilise la paire unique utilisateur/date : relancer le workflow met à jour le point du jour sans créer de doublon.
 
 Secrets GitHub nécessaires :
 
@@ -209,6 +209,8 @@ Secrets GitHub nécessaires :
 L’inscription est absente de l’interface. Les deux comptes autorisés restent indépendants : l’identifiant de l’utilisateur accompagne chaque ligne et les politiques RLS empêchent la lecture des données d’un autre compte.
 
 L’export JSON permet de conserver une copie locale des comptes, positions, transactions, prélèvements, historique, objectifs et plan mensuel.
+
+Après chaque chargement complet, Moobank mémorise aussi la dernière situation valide sur l’appareil, sous une clé propre à l’utilisateur. En cas d’indisponibilité temporaire de Supabase, cette copie peut être consultée en lecture seule ; un bandeau daté l’indique et la synchronisation reprend automatiquement. Aucun email, mot de passe ou jeton n’est placé dans ce cache.
 
 ### Ancien plan patrimonial privé
 

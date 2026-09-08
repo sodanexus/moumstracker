@@ -1,3 +1,24 @@
+# Moobank 2.5.0 — portefeuille mobile et filet de sécurité
+
+- taux USD/EUR réintroduit discrètement sur mobile, sans rétablir l’ancien en-tête encombrant ;
+- textes d’accompagnement raccourcis dans les trois vues ;
+- cartes de comptes compactées sur deux colonnes sur téléphone ;
+- tableau des positions remplacé sur mobile par des cartes dépliables affichant valeur, performance, quantité, PRU et cours ;
+- largeur des vues verrouillée et zoom/déplacement horizontal désactivés sur mobile ;
+- types `Livret A`, `LDDS` et `Autre livret` ajoutés, avec conservation du type historique `Livret` ;
+- script Supabase optionnel et non destructif ajouté pour autoriser ces trois nouvelles valeurs ;
+- lectures et écritures Supabase retentées jusqu’à quatre fois lors des erreurs temporaires ;
+- import d’historique validé et retenté avec clé idempotente utilisateur/date ;
+- dernière situation complète conservée localement par utilisateur et affichée en lecture seule lors d’une panne ;
+- indicateur daté, bouton de nouvel essai et resynchronisation automatique ajoutés au mode cache ;
+- validations centralisées avant les sauvegardes de comptes, positions, cotations, mouvements, prélèvements, objectifs et historique ;
+- snapshots renforcés par des essais Supabase, une validation du total et une confirmation de l’upsert idempotent ;
+- nettoyage du service worker limité aux caches Moobank ;
+- écran de mise à jour PWA explicite avec boutons **Plus tard** et **Mettre à jour** ;
+- tests automatisés des parcours connexion, ajout, modification, suppression, actualisation et cache.
+
+---
+
 # Moobank 2.4.1 — trajectoire responsive
 
 - hauteur du `viewBox` de la trajectoire alignée sur la hauteur réellement affichée du graphique ;

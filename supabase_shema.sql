@@ -2,8 +2,8 @@
 -- Moobank — schéma complet pour une NOUVELLE installation Supabase
 -- ============================================================================
 -- Ce fichier n'est pas une migration et n'est jamais exécuté par l'application.
--- Ne l'exécutez pas aveuglément sur une base existante : la mise à jour livrée
--- fonctionne avec les données actuelles sans aucune migration.
+-- Ne l'exécutez pas sur une base existante. Pour y activer les nouveaux types
+-- de livrets, utilisez uniquement scripts/optional/enable-savings-account-types.sql.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.accounts (
   name        TEXT NOT NULL,
   type        TEXT NOT NULL CHECK (type IN (
                 'PEA', 'CTO', 'PEE', 'PER', 'AV', 'Crypto',
-                'Livret', 'Immo', 'Autre'
+                'Livret', 'Livret A', 'LDDS', 'Autre livret', 'Immo', 'Autre'
               )),
   solde       NUMERIC(24, 2),
   currency    TEXT NOT NULL DEFAULT 'EUR',
