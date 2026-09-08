@@ -6,17 +6,18 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPA_URL = process.env.SUPA_URL;
 const SUPA_KEY = process.env.SUPA_KEY;
-const USER_IDS = (process.env.USER_IDS || process.env.SNAPSHOT_USER_IDS || '')
+const USER_IDS = [...new Set((process.env.USER_IDS || process.env.SNAPSHOT_USER_IDS || '')
   .split(',')
   .map(value => value.trim())
-  .filter(Boolean);
+  .filter(Boolean))];
 
 const YF_WORKER = 'https://yf-proxy.viqmusic-promo.workers.dev';
 const YF_BASE = 'https://query1.finance.yahoo.com';
-const FIXED_ACCOUNT_TYPES = new Set(['Livret', 'Immo', 'Autre']);
+const FIXED_ACCOUNT_TYPES = new Set(['Livret', 'Livret A', 'LDDS', 'Autre livret', 'Immo', 'Autre']);
 const FETCH_TIMEOUT_MS = 8000;
 const FETCH_ATTEMPTS = 4;
 const QUOTE_CONCURRENCY = 3;
+const SUPABASE_ATTEMPTS = 4;
 
 function parisDateTime(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -55,6 +56,40 @@ const sb = createClient(SUPA_URL, SUPA_KEY, {
 });
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+function isTransientSupabaseError(error) {
+  const status = Number(error?.status || error?.statusCode || 0);
+  const message = String(error?.message || '');
+  return status === 0 || [408, 425, 429].includes(status) || status >= 500 ||
+    /fetch|network|timeout|temporar|JWT issued at future/i.test(message);
+}
+
+async function runSupabase(label, operation) {
+  let lastError;
+  for (let attempt = 1; attempt <= SUPABASE_ATTEMPTS; attempt++) {
+    try {
+      const result = await operation();
+      if (!result?.error) return result;
+      const error = new Error(`${label}: ${result.error.message || 'erreur Supabase'}`);
+      error.status = result.status || result.error.status || 0;
+      error.code = result.error.code || '';
+      throw error;
+    } catch (error) {
+      lastError = error;
+      if (attempt >= SUPABASE_ATTEMPTS || !isTransientSupabaseError(error)) throw error;
+      await wait(Math.min(6000, 600 * (2 ** (attempt - 1))) + Math.round(Math.random() * 220));
+    }
+  }
+  throw lastError || new Error(`${label}: requête impossible`);
+}
+
+function assertFiniteAmount(value, label, minimum = 0) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < minimum || number > 1e15) {
+    throw new Error(`${label} invalide`);
+  }
+  return number;
+}
 
 async function mapWithConcurrency(items, limit, mapper) {
   const list = Array.from(items || []);
@@ -176,11 +211,15 @@ async function quoteInEur(symbol) {
 }
 
 async function snapshotUser(userId) {
-  const { data: accounts = [], error: accountsError } = await sb
+  const { data: accounts = [] } = await runSupabase('accounts', () => sb
     .from('accounts')
     .select('id, type, solde')
-    .eq('user_id', userId);
-  if (accountsError) throw new Error(`accounts: ${accountsError.message}`);
+    .eq('user_id', userId));
+
+  accounts.forEach(account => {
+    if (!account?.id || !account?.type) throw new Error('accounts: ligne invalide');
+    if (FIXED_ACCOUNT_TYPES.has(account.type)) assertFiniteAmount(account.solde || 0, `solde ${account.id}`);
+  });
 
   const fixedTotal = accounts
     .filter(account => FIXED_ACCOUNT_TYPES.has(account.type))
@@ -189,11 +228,15 @@ async function snapshotUser(userId) {
     accounts.filter(account => FIXED_ACCOUNT_TYPES.has(account.type)).map(account => account.id)
   );
 
-  const { data: positions = [], error: positionsError } = await sb
+  const { data: positions = [] } = await runSupabase('positions', () => sb
     .from('positions')
     .select('symbol, qty, account_id')
-    .eq('user_id', userId);
-  if (positionsError) throw new Error(`positions: ${positionsError.message}`);
+    .eq('user_id', userId));
+
+  positions.forEach(position => {
+    if (!String(position?.symbol || '').trim() || !position?.account_id) throw new Error('positions: ligne invalide');
+    assertFiniteAmount(position.qty, `quantité ${position.symbol}`, Number.EPSILON);
+  });
 
   const quantities = new Map();
   positions
@@ -219,13 +262,18 @@ async function snapshotUser(userId) {
   }
 
   const totalValue = Math.round((marketTotal + fixedTotal) * 100) / 100;
-  const { error: upsertError } = await sb
+  assertFiniteAmount(totalValue, 'patrimoine total');
+  const { data: saved } = await runSupabase('patrimoine_history', () => sb
     .from('patrimoine_history')
     .upsert(
       { user_id: userId, date: today, value: totalValue },
       { onConflict: 'user_id,date' }
-    );
-  if (upsertError) throw new Error(`patrimoine_history: ${upsertError.message}`);
+    )
+    .select('user_id,date,value')
+    .single());
+  if (saved?.user_id !== userId || saved?.date !== today || Math.abs(Number(saved?.value) - totalValue) > 0.005) {
+    throw new Error('patrimoine_history: écriture non confirmée');
+  }
 
   console.log(`✓ ${userId.slice(0, 8)}… → ${totalValue.toLocaleString('fr-FR')} € (${today})`);
   console.log(`  marché : ${Math.round(marketTotal).toLocaleString('fr-FR')} € | fixe : ${Math.round(fixedTotal).toLocaleString('fr-FR')} €`);
