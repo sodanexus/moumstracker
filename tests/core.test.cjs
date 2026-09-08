@@ -105,3 +105,41 @@ test('une erreur définitive n’est pas retentée', async () => {
   }, { attempts: 3, shouldRetry: () => false }), /définitive/);
   assert.equal(attempts, 1);
 });
+
+test('les nouveaux livrets sont acceptés sans retirer le type historique', () => {
+  for (const type of ['Livret', 'Livret A', 'LDDS', 'Autre livret']) {
+    assert.doesNotThrow(() => core.validateAccountRecord({
+      id: `account-${type}`,
+      user_id: 'user-1',
+      name: 'Épargne',
+      type,
+      solde: 6000,
+    }));
+  }
+  assert.throws(() => core.validateAccountRecord({
+    id: 'account-invalid', user_id: 'user-1', name: 'Test', type: 'Inconnu', solde: 0,
+  }), /Type de compte/);
+});
+
+test('une cotation invalide est bloquée avant toute sauvegarde', () => {
+  assert.throws(() => core.validatePositionPriceUpdate({
+    id: 'position-1', current: Number.NaN, change: 0, changePercent: 0, lastUpdated: Date.now(),
+  }), /positions\.current/);
+  assert.throws(() => core.validatePositionPriceUpdate({
+    id: 'position-1', current: null, change: null, changePercent: null, lastUpdated: null,
+  }), /positions\.current/);
+});
+
+test('une position supprimée pendant le refresh est retirée sans écraser les autres champs', () => {
+  const state = [
+    { id: 'a', qty: 4, price: 12, current: 13 },
+    { id: 'b', qty: 8, price: 20, current: 21 },
+  ];
+  const merged = core.mergePositionPriceUpdates(state, [
+    { id: 'a', current: 14, change: 1, changePercent: 7.7, lastUpdated: 1234 },
+  ], ['b']);
+  assert.equal(merged.length, 1);
+  assert.deepEqual({ ...merged[0] }, {
+    id: 'a', qty: 4, price: 12, current: 14, change: 1, changePercent: 7.7, lastUpdated: 1234,
+  });
+});

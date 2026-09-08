@@ -58,7 +58,7 @@ test('la nouvelle identité transparente est utilisée par le site et la PWA', (
   assert.match(worker, /assets\/css\/v2\.css/);
   assert.doesNotMatch(mark, /<rect\b/i);
   assert.equal(manifest.name, 'Moobank — Patrimoine');
-  assert.equal(JSON.parse(read('version.json')).version, '2.4.1');
+  assert.equal(JSON.parse(read('version.json')).version, '2.5.0');
 });
 
 test('la synthèse remplace le doublon des poches par trois actualités non bloquantes', () => {
@@ -191,7 +191,7 @@ test('le service worker couvre les fichiers séparés et attend la validation ut
   assert.match(worker, /mustStayFresh/);
 });
 
-test('le contenu respecte la safe area et le chrome mobile reste uniquement en bas', () => {
+test('le contenu respecte les safe areas, avec navigation basse et change discret en haut', () => {
   const css = read('assets/css/v2.css');
   const legacyCss = read('assets/css/app.css');
   const mobileCss = css.slice(css.indexOf('@media (max-width: 820px)'));
@@ -200,29 +200,107 @@ test('le contenu respecte la safe area et le chrome mobile reste uniquement en b
   assert.match(css, /--safe-bottom: env\(safe-area-inset-bottom, 0px\)/);
   assert.match(mobileCss, /\.app \{[\s\S]*?padding-top: max\(12px, calc\(var\(--safe-top\) \+ 8px\)\)/);
   assert.match(mobileHeaderRule, /position: static;/);
-  assert.match(mobileHeaderRule, /height: 0;/);
+  assert.match(mobileHeaderRule, /min-height: 24px;/);
+  assert.match(mobileHeaderRule, /height: auto;/);
   assert.match(mobileHeaderRule, /padding: 0;/);
   assert.match(mobileHeaderRule, /-webkit-backdrop-filter: none;/);
   assert.match(mobileHeaderRule, /backdrop-filter: none;/);
   assert.doesNotMatch(mobileHeaderRule, /blur\(/);
-  assert.match(mobileCss, /\.app > header \.brand-mark,[\s\S]*?\.app > header > \.header-tools \{ display: none !important; \}/);
+  assert.match(mobileCss, /\.app > header \.brand-mark \{ display: none !important; \}/);
+  assert.match(mobileCss, /\.app > header > \.header-tools \{[\s\S]*?display: flex !important;/);
+  assert.match(mobileCss, /\.app > header #eurusd-widget \{[\s\S]*?display: flex !important;/);
+  assert.match(mobileCss, /\.app > header \.app-menu-toggle \{ display: none !important; \}/);
   assert.match(css, /@media \(max-width: 820px\)[\s\S]*?\.navigation-bar \{[\s\S]*?position: fixed !important;[\s\S]*?top: auto !important;[\s\S]*?bottom: 0 !important;[\s\S]*?var\(--safe-bottom\)/);
   assert.match(legacyCss, /@media\(max-width:768px\)[\s\S]*?\.navigation-bar\{[\s\S]*?position:fixed;[\s\S]*?top:auto;[\s\S]*?bottom:0;[\s\S]*?safe-area-inset-bottom/);
   assert.doesNotMatch(legacyCss, /\.navigation-bar\{[\s\S]{0,220}position:sticky;[\s\S]{0,120}top:env\(safe-area-inset-top\)/);
 });
 
-test('les trois vues gardent la même échelle et la même animation', () => {
+test('les trois vues gardent la même échelle, restent fixes et partagent la même animation', () => {
   const html = read('index.html');
   const css = read('assets/css/v2.css');
   const app = read('assets/js/app.js');
-  assert.match(html, /width=device-width, initial-scale=1\.0, viewport-fit=cover/);
-  assert.doesNotMatch(html, /user-scalable\s*=\s*no|maximum-scale\s*=\s*1/i);
+  assert.match(html, /width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover/);
   assert.match(css, /-webkit-text-size-adjust: 100%/);
-  assert.match(css, /\.tab-panel \{ width: 100%; min-width: 0; \}/);
+  assert.match(css, /html \{[\s\S]*?overflow-x: clip;[\s\S]*?overscroll-behavior-x: none;/);
+  assert.match(css, /body \{[\s\S]*?overflow-x: clip;[\s\S]*?overscroll-behavior-x: none;/);
+  assert.match(css, /@media \(max-width: 820px\)[\s\S]*?html, body \{[\s\S]*?overflow-x: hidden;[\s\S]*?touch-action: pan-y;/);
+  assert.match(css, /\.tab-panel \{ width: 100%; min-width: 0; max-width: 100%; overflow-x: clip; \}/);
   assert.match(css, /@keyframes moobankTabFadeIn/);
   assert.match(css, /\.tab-panel\.active,[\s\S]*?\.tab-panel\.active\.slide-left \{ animation: moobankTabFadeIn/);
   assert.match(css, /input, select, textarea \{ font-size: 16px !important; \}/);
   assert.doesNotMatch(app, /current\.style\.transform|goingRight|translateX\(-?14px\)/);
+});
+
+test('le portefeuille mobile utilise des poches compactes et des positions dépliables', () => {
+  const html = read('index.html');
+  const css = read('assets/css/v2.css');
+  const app = read('assets/js/app.js');
+  assert.match(html, /id="posMobileList"/);
+  assert.match(css, /@media \(max-width: 820px\)[\s\S]*?\.accounts-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /@media \(max-width: 820px\)[\s\S]*?\.positions-table \{ display: none; \}/);
+  assert.match(css, /\.position-mobile-list \{ display: grid;/);
+  assert.match(app, /function toggleMobilePositionCard/);
+  assert.match(app, /class="position-mobile-details"/);
+});
+
+test('les nouveaux livrets sont cohérents entre interface, moteur, schéma et migration', () => {
+  const html = read('index.html');
+  const core = read('assets/js/core.js');
+  const app = read('assets/js/app.js');
+  const trajectory = read('assets/js/trajectory-core.js');
+  const schema = read('supabase_shema.sql');
+  const migration = read('scripts/optional/enable-savings-account-types.sql');
+  for (const type of ['Livret A', 'LDDS', 'Autre livret']) {
+    for (const source of [html, core, app, trajectory, schema, migration]) assert.match(source, new RegExp(type));
+  }
+  assert.doesNotMatch(html, /<option value="Livret">/);
+  assert.match(core, /'Livret'/);
+  assert.match(migration, /BEGIN;[\s\S]*DROP CONSTRAINT IF EXISTS accounts_type_check;[\s\S]*ADD CONSTRAINT accounts_type_check[\s\S]*COMMIT;/);
+  assert.doesNotMatch(migration, /DROP TABLE|TRUNCATE|DELETE FROM/i);
+});
+
+test('le cache local est isolé, signalé et utilisé en lecture seule après un échec', () => {
+  const html = read('index.html');
+  const app = read('assets/js/app.js');
+  const core = read('assets/js/core.js');
+  assert.match(html, /id="cachedDataNotice"[\s\S]*?Réessayer/);
+  assert.match(app, /DATA_CACHE_PREFIX\s*=\s*'moobank:last-valid:'/);
+  assert.match(app, /MoobankCore\.createDataCacheEnvelope/);
+  assert.match(app, /MoobankCore\.parseDataCacheEnvelope/);
+  assert.match(app, /setCachedDataMode\(true, cached\.savedAt\)/);
+  assert.match(app, /Données locales du .*lecture seule/);
+  assert.match(app, /function assertLiveWrite/);
+  assert.match(core, /parsed\.userId !== userId/);
+});
+
+test('toutes les écritures sont validées, retentées et les snapshots restent idempotents', () => {
+  const app = read('assets/js/app.js');
+  const historyImport = read('assets/js/history-import.js');
+  const snapshot = read('scripts/daily-snapshot.js');
+  const schema = read('supabase_shema.sql');
+  for (const validator of ['validateAccountRecord', 'validatePositionRecord', 'validatePositionPriceUpdate', 'validatePrelevementRecord', 'validateTransactionRecord', 'validateHistoryRecord', 'validateGoalRecord']) {
+    assert.match(app + historyImport, new RegExp(`MoobankCore\\.${validator}`));
+  }
+  assert.match(app, /signInWithPassword[\s\S]*?attempts: 3[\s\S]*?shouldRetry: isTransientAuthError/);
+  assert.match(app, /function retryDbWrite[\s\S]*?attempts: 4/);
+  assert.match(historyImport, /retryDbWrite[\s\S]*?onConflict: 'user_id,date'/);
+  assert.match(snapshot, /SUPABASE_ATTEMPTS = 4/);
+  assert.match(snapshot, /runSupabase\('patrimoine_history'/);
+  assert.match(snapshot, /onConflict: 'user_id,date'/);
+  assert.match(schema, /UNIQUE\(user_id, date\)/);
+});
+
+test('la mise à jour PWA propose une décision claire et ne nettoie que les caches Moobank', () => {
+  const app = read('assets/js/app.js');
+  const css = read('assets/css/v2.css');
+  const worker = read('sw.js');
+  assert.match(app, /Mise à jour disponible/);
+  assert.match(app, />Mettre à jour</);
+  assert.match(app, />Plus tard</);
+  assert.match(css, /\.app-update-overlay/);
+  assert.match(css, /\.app-update-card/);
+  assert.match(worker, /CACHE_PREFIX = 'moobank-shell-'/);
+  assert.match(worker, /key\.startsWith\(CACHE_PREFIX\) && key !== CACHE_NAME/);
 });
 
 test('la courbe de trajectoire utilise ses dimensions mobiles réelles', () => {
@@ -243,7 +321,7 @@ test('les versions publiques et les ressources versionnées sont cohérentes', (
   const version = JSON.parse(read('version.json')).version;
   const pkg = JSON.parse(read('package.json'));
   const lock = JSON.parse(read('package-lock.json'));
-  assert.equal(version, '2.4.1');
+  assert.equal(version, '2.5.0');
   assert.equal(pkg.version, version);
   assert.equal(lock.version, version);
   assert.equal(lock.packages[''].version, version);
