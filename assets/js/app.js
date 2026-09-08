@@ -3,13 +3,21 @@
 // Ne plus écrire 'Livret', 'CTO' etc. en dur dans le code — utiliser ces objets.
 
 // Types de comptes avec solde fixe (pas des positions de marché)
-const FIXED_ACCOUNT_TYPES = new Set(['Livret', 'Immo', 'Autre']);
+const FIXED_ACCOUNT_TYPES = new Set(['Livret', 'Livret A', 'LDDS', 'Autre livret', 'Immo', 'Autre']);
+
+const ACCOUNT_TYPE_LABELS = Object.freeze({
+  Livret: 'Autre livret',
+  'Livret A': 'Livret A',
+  LDDS: 'LDDS',
+  'Autre livret': 'Autre livret',
+});
 
 // Tag CSS par type de compte
 const TAG_CLASS_MAP = {
   PEA: 'tag-pea', CTO: 'tag-cto', PEE: 'tag-pee', PER: 'tag-per',
   AV: 'tag-av', Crypto: 'tag-crypto', Immo: 'tag-immo',
-  Livret: 'tag-livret', Autre: 'tag-autre',
+  Livret: 'tag-livret', 'Livret A': 'tag-livret', LDDS: 'tag-livret',
+  'Autre livret': 'tag-livret', Autre: 'tag-autre',
 };
 
 // Libellés des catégories de prélèvements
@@ -65,7 +73,6 @@ let selectedTicker = null;
 let searchTimeout = null;
 let suggestionsIndex = -1;
 let tickerSearchSeq = 0;
-let _mobileRowData = {};      // données mobile des lignes de position
 let _tickerSuggestions = [];  // suggestions ticker courantes (évite les attributs HTML encodés)
 let currentChartPeriod = '1S';
 let _eurUsdInterval = null;
@@ -140,6 +147,8 @@ const TIMING_LOAD_TIMEOUT    = 8000; // timeout chargement des données Supabase
 const TIMING_SUPABASE_RETRY  = 1000; // délai avant retry Supabase après timeout
 const JWT_RETRY_DELAYS       = [1000, 2000, 4000]; // max. 4 lectures, jamais de nouvelle connexion automatique
 const TIMING_PROXY_FETCH     = 5000; // timeout fetch via proxy CORS (Yahoo Finance & RSS)
+const DATA_CACHE_PREFIX      = 'moobank:last-valid:';
+const DATA_CACHE_MAX_AGE     = 1000 * 60 * 60 * 24 * 90;
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 let _authSubmitTask = null;
@@ -148,6 +157,11 @@ let _appReadyTask = null;
 let _authUser = null;          // session SDK, distincte des données réellement chargées
 let _authEventVersion = 0;
 let _failedLoad = null;
+let _usingCachedData = false;
+let _cacheWriteTimer = null;
+let _cacheSyncTask = null;
+let _cacheRetryTimer = null;
+let _cacheRetryIndex = 0;
 
 function canRetryDataLoad() {
   return _failedLoad && _failedLoad.kind !== 'auth_required' &&
@@ -168,6 +182,13 @@ function setAuthLoadStatus(message) {
   const status = document.getElementById('auth-error');
   status.style.color = 'var(--text)';
   status.textContent = message;
+}
+
+function isTransientAuthError(error) {
+  const status = Number(error?.status || error?.statusCode || 0);
+  const message = String(error?.message || '');
+  return [408, 425, 429].includes(status) || status >= 500 ||
+    /fetch|network|timeout|temporar/i.test(message);
 }
 
 async function submitAuth() {
@@ -194,9 +215,20 @@ async function submitAuth() {
       }
       if (!password) { errEl.textContent = 'Veuillez saisir votre mot de passe pour vous reconnecter.'; return; }
     }
-    const res = await sb.auth.signInWithPassword({ email, password });
+    const res = await MoobankCore.retryOperation(async attempt => {
+      if (attempt > 0) {
+        errEl.style.color = 'var(--text)';
+        errEl.textContent = `Connexion momentanément indisponible — nouvel essai (${attempt + 1}/3)…`;
+      }
+      const response = await sb.auth.signInWithPassword({ email, password });
+      if (response.error) throw response.error;
+      return response;
+    }, {
+      attempts: 3,
+      delays: [600, 1600],
+      shouldRetry: isTransientAuthError,
+    });
     if (_authSubmitTask !== task) return;
-    if (res.error) throw res.error;
     if (!res.data.session?.user) throw new Error('Session indisponible — veuillez réessayer.');
     _authUser = res.data.session.user;
     // Même point d'entrée que le démarrage et les événements SDK ; un seul
@@ -350,7 +382,7 @@ async function loadAllData(uid, signal) {
     if (errors.length) {
       // PostgREST met le statut HTTP sur la réponse, pas sur response.error.
       const futureJwt = errors.every(e => (e.status === 401 || e.code === 'PGRST303') && /JWT issued at future/i.test(e.message));
-      const temporary = errors.every(e => e.status === 0 || e.status >= 500);
+      const temporary = errors.every(e => e.status === 0 || [408, 425, 429].includes(Number(e.status)) || e.status >= 500);
       const kind = futureJwt ? 'jwt_future' : temporary ? 'network' :
         errors.every(e => e.status === 401) ? 'auth_required' : 'database';
       throw dataLoadError(kind, errors);
@@ -358,7 +390,7 @@ async function loadAllData(uid, signal) {
     const [accRes, posRes, prelRes, txRes, histRes, goalsRes] = results;
     // Aucune affectation globale ici : l'appelant doit encore vérifier que la
     // session n'a pas changé. Toutes les tables sont validées avant le commit.
-    return {
+    const loaded = {
       accounts: accRes.data.map(a => ({ id: a.id, name: a.name, type: a.type, solde: a.solde })),
       positions: posRes.data.map(p => ({
         id: p.id, symbol: p.symbol, name: p.name, exchange: p.exchange,
@@ -381,6 +413,8 @@ async function loadAllData(uid, signal) {
         emoji: g.emoji, createdAt: new Date(g.created_at).getTime()
       }))
     };
+    MoobankCore.validateCachedDataset(loaded);
+    return loaded;
   } catch (error) {
     if (signal.aborted) throw canceledDataLoad();
     if (!error.kind && /fetch|network|load failed/i.test(error.message || '')) throw dataLoadError('network');
@@ -404,6 +438,121 @@ function waitForDataRetry(ms, signal) {
   });
 }
 
+// ─── DERNIÈRE SITUATION VALIDE ───────────────────────────────────────────────
+// Ce cache ne contient ni email, ni mot de passe, ni jeton. Il est isolé par
+// identifiant utilisateur et n'est utilisé qu'après validation de la session.
+function dataCacheKey(userId) {
+  return DATA_CACHE_PREFIX + userId;
+}
+
+function currentDataSnapshot() {
+  return { accounts, positions, prelevements, transactions, patrimoineHistory, goals };
+}
+
+function assignLoadedData(loaded) {
+  MoobankCore.validateCachedDataset(loaded);
+  ({ accounts, positions, prelevements, transactions, patrimoineHistory, goals } = loaded);
+  positionHistory = {};
+}
+
+function persistDataCache(userId, data) {
+  if (!userId || _usingCachedData) return;
+  try {
+    const envelope = MoobankCore.createDataCacheEnvelope(userId, data);
+    localStorage.setItem(dataCacheKey(userId), JSON.stringify(envelope));
+  } catch (error) {
+    console.warn('[Moobank] cache local non enregistré :', error.message);
+  }
+}
+
+function scheduleDataCacheWrite() {
+  if (!currentUser || _usingCachedData) return;
+  clearTimeout(_cacheWriteTimer);
+  _cacheWriteTimer = setTimeout(() => persistDataCache(currentUser.id, currentDataSnapshot()), 120);
+}
+
+function readDataCache(userId) {
+  try {
+    const raw = localStorage.getItem(dataCacheKey(userId));
+    if (!raw) return null;
+    return MoobankCore.parseDataCacheEnvelope(raw, userId, DATA_CACHE_MAX_AGE);
+  } catch (error) {
+    console.warn('[Moobank] cache local ignoré :', error.message);
+    return null;
+  }
+}
+
+function cacheDateLabel(savedAt) {
+  const date = new Date(savedAt);
+  if (!Number.isFinite(date.getTime())) return 'date inconnue';
+  return date.toLocaleString('fr-FR', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function setCachedDataMode(active, savedAt) {
+  _usingCachedData = active;
+  const app = document.getElementById('mainApp');
+  const notice = document.getElementById('cachedDataNotice');
+  const message = document.getElementById('cachedDataMessage');
+  app?.classList.toggle('cached-data-mode', active);
+  notice?.classList.toggle('hidden', !active);
+  if (active && message) {
+    message.textContent = `Données locales du ${cacheDateLabel(savedAt)} · lecture seule`;
+  }
+}
+
+function scheduleCachedDataRetry() {
+  if (!_usingCachedData || !currentUser || _cacheSyncTask) return;
+  clearTimeout(_cacheRetryTimer);
+  const delays = [4000, 12000, 30000, 60000];
+  const delay = delays[Math.min(_cacheRetryIndex, delays.length - 1)];
+  _cacheRetryTimer = setTimeout(() => retryCachedDataSync(false), delay);
+}
+
+async function retryCachedDataSync(manual = true) {
+  if (!_usingCachedData || !currentUser || _cacheSyncTask) return;
+  const user = currentUser;
+  const task = { controller: new AbortController() };
+  _cacheSyncTask = task;
+  let shouldScheduleRetry = false;
+  const message = document.getElementById('cachedDataMessage');
+  if (message) message.textContent = 'Synchronisation en cours…';
+  try {
+    const loaded = await MoobankCore.retryOperation(
+      () => loadAllData(user.id, task.controller.signal),
+      { attempts: 2, delays: [1200], shouldRetry: error => ['jwt_future', 'timeout', 'network'].includes(error.kind) }
+    );
+    if (_cacheSyncTask !== task || currentUser?.id !== user.id) return;
+    assignLoadedData(loaded);
+    setCachedDataMode(false);
+    _cacheRetryIndex = 0;
+    _failedLoad = null;
+    renderAll();
+    renderPrelevements();
+    renderGoals();
+    persistDataCache(user.id, loaded);
+    showToast('✅ Données synchronisées', 'success');
+    fetchEurUsd();
+    if (positions.length > 0) refreshAllPrices();
+    clearInterval(_priceRefreshInterval);
+    _priceRefreshInterval = setInterval(() => {
+      if (!_usingCachedData && currentUser?.id === user.id && positions.length > 0 && document.visibilityState === 'visible') {
+        refreshAllPrices();
+      }
+    }, 5 * 60 * 1000);
+  } catch (error) {
+    if (_cacheSyncTask !== task || error.name === 'AbortError') return;
+    _cacheRetryIndex++;
+    if (message) message.textContent = `Données locales affichées · nouvel essai automatique`;
+    if (manual) showToast('Synchronisation encore indisponible.', 'error');
+    shouldScheduleRetry = true;
+  } finally {
+    if (_cacheSyncTask === task) _cacheSyncTask = null;
+    if (shouldScheduleRetry) scheduleCachedDataRetry();
+  }
+}
+
 // ─── DB SAVE ──────────────────────────────────────────────────────────────────
 // Chaque écriture cible uniquement la ligne concernée. On ne déduit jamais une
 // suppression de l'état local complet : un onglet ancien ne peut donc plus
@@ -417,10 +566,15 @@ function isTransientDbError(error) {
 
 function retryDbWrite(operation) {
   return MoobankCore.retryOperation(operation, {
-    attempts: 3,
-    delays: [350, 1000],
+    attempts: 4,
+    delays: [350, 1000, 2400],
     shouldRetry: isTransientDbError,
   });
+}
+
+function assertLiveWrite() {
+  if (_usingCachedData) throw new Error('Données locales en lecture seule — synchronisation requise');
+  if (!currentUser?.id) throw new Error('Session absente');
 }
 
 function accountDbRow(a) {
@@ -428,10 +582,14 @@ function accountDbRow(a) {
 }
 
 async function saveAccount(account) {
+  assertLiveWrite();
+  const row = accountDbRow(account);
+  MoobankCore.validateAccountRecord(row);
   await retryDbWrite(async () => {
-    const { error } = await sb.from('accounts').upsert(accountDbRow(account));
+    const { error } = await sb.from('accounts').upsert(row);
     if (error) throw error;
   });
+  scheduleDataCacheWrite();
 }
 
 function positionDbRow(p) {
@@ -445,28 +603,44 @@ function positionDbRow(p) {
 }
 
 async function savePosition(position) {
+  assertLiveWrite();
+  const row = positionDbRow(position);
+  MoobankCore.validatePositionRecord(row);
   await retryDbWrite(async () => {
-    const { error } = await sb.from('positions').upsert(positionDbRow(position));
+    const { error } = await sb.from('positions').upsert(row);
     if (error) throw error;
   });
+  scheduleDataCacheWrite();
 }
 
 async function savePositionPrices(changedPositions, userId) {
+  assertLiveWrite();
   if (!userId) throw new Error('Session absente pendant l’actualisation');
   const results = await MoobankCore.mapWithConcurrency(changedPositions, 4, async p => {
-    const { data, error } = await sb
-      .from('positions')
-      .update({
-        current: p.current ?? 0,
-        change: p.change ?? null,
-        change_percent: p.changePercent ?? null,
-        last_updated: p.lastUpdated ?? null
-      })
-      .eq('id', p.id)
-      .eq('user_id', userId)
-      .select('id')
-      .maybeSingle();
-    return { id: p.id, data, error };
+    const update = {
+      id: p.id,
+      current: p.current ?? 0,
+      change: p.change ?? null,
+      change_percent: p.changePercent ?? null,
+      last_updated: p.lastUpdated ?? null
+    };
+    MoobankCore.validatePositionPriceUpdate(update);
+    return retryDbWrite(async () => {
+      const { data, error } = await sb
+        .from('positions')
+        .update({
+          current: update.current,
+          change: update.change,
+          change_percent: update.change_percent,
+          last_updated: update.last_updated
+        })
+        .eq('id', p.id)
+        .eq('user_id', userId)
+        .select('id')
+        .maybeSingle();
+      if (error) throw error;
+      return { id: p.id, data, error: null };
+    });
   });
 
   // Une ligne absente n'est pas une panne : elle a pu être supprimée depuis
@@ -474,24 +648,31 @@ async function savePositionPrices(changedPositions, userId) {
   // recrée surtout pas ; l'appelant la retire simplement de son état local.
   const errors = results.map(result => result.error).filter(Boolean);
   if (errors.length) throw errors[0];
-  return {
+  const outcome = {
     updatedIds: results.filter(result => result.data).map(result => result.id),
     missingIds: results.filter(result => !result.data).map(result => result.id),
   };
+  scheduleDataCacheWrite();
+  return outcome;
 }
 
 async function savePrelevement(prelevement) {
+  assertLiveWrite();
+  const row = {
+    id: prelevement.id, user_id: currentUser.id, name: prelevement.name,
+    amount: prelevement.amount, freq: prelevement.freq, cat: prelevement.cat,
+    split: prelevement.split || 1
+  };
+  MoobankCore.validatePrelevementRecord(row);
   await retryDbWrite(async () => {
-    const { error } = await sb.from('prelevements').upsert({
-      id: prelevement.id, user_id: currentUser.id, name: prelevement.name,
-      amount: prelevement.amount, freq: prelevement.freq, cat: prelevement.cat,
-      split: prelevement.split || 1
-    });
+    const { error } = await sb.from('prelevements').upsert(row);
     if (error) throw error;
   });
+  scheduleDataCacheWrite();
 }
 
 async function saveTransaction(tx) {
+  assertLiveWrite();
   const row = {
     id: tx.id, user_id: currentUser.id, type: tx.type,
     symbol: tx.symbol, name: tx.name, qty: tx.qty,
@@ -499,51 +680,70 @@ async function saveTransaction(tx) {
   };
   if (tx.oldQty  !== undefined) row.old_qty   = tx.oldQty;
   if (tx.oldPrice !== undefined) row.old_price = tx.oldPrice;
+  MoobankCore.validateTransactionRecord(row);
   // L'identifiant est créé avant l'écriture : un nouvel essai après une coupure
   // réseau ne peut donc pas dupliquer la ligne d'historique.
   await retryDbWrite(async () => {
     const { error } = await sb.from('transactions').upsert(row, { onConflict: 'id' });
     if (error) throw error;
   });
+  scheduleDataCacheWrite();
 }
 
 async function savePatrimoineHistory() {
+  assertLiveWrite();
   const uid = currentUser.id;
   const last = patrimoineHistory[patrimoineHistory.length - 1];
   if (!last) return;
+  const row = { user_id: uid, date: last.date, value: last.value };
+  MoobankCore.validateHistoryRecord(row);
   await retryDbWrite(async () => {
-    const { error } = await sb.from('patrimoine_history').upsert({
-      user_id: uid, date: last.date, value: last.value
-    }, { onConflict: 'user_id,date' });
+    const { error } = await sb.from('patrimoine_history').upsert(row, { onConflict: 'user_id,date' });
     if (error) throw error;
   });
+  scheduleDataCacheWrite();
 }
 
+// DELETE est volontairement idempotent : si la première réponse réseau se
+// perd après le commit, la tentative suivante trouve zéro ligne et valide tout
+// de même l'opération. Une vraie erreur Supabase continue d'être propagée.
 async function deleteAccountDB(id) {
-  const { data, error } = await sb.from('accounts').delete().eq('id', id).eq('user_id', currentUser.id).select('id').maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error('Suppression du compte non confirmée');
+  assertLiveWrite();
+  await retryDbWrite(async () => {
+    const { error } = await sb.from('accounts').delete().eq('id', id).eq('user_id', currentUser.id).select('id').maybeSingle();
+    if (error) throw error;
+  });
+  scheduleDataCacheWrite();
 }
 async function deletePositionDB(id) {
-  const { data, error } = await sb.from('positions').delete().eq('id', id).eq('user_id', currentUser.id).select('id').maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error('Suppression de la position non confirmée');
+  assertLiveWrite();
+  await retryDbWrite(async () => {
+    const { error } = await sb.from('positions').delete().eq('id', id).eq('user_id', currentUser.id).select('id').maybeSingle();
+    if (error) throw error;
+  });
+  scheduleDataCacheWrite();
 }
 async function deletePrelDB(id) {
-  const { data, error } = await sb.from('prelevements').delete().eq('id', id).eq('user_id', currentUser.id).select('id').maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error('Suppression du prélèvement non confirmée');
+  assertLiveWrite();
+  await retryDbWrite(async () => {
+    const { error } = await sb.from('prelevements').delete().eq('id', id).eq('user_id', currentUser.id).select('id').maybeSingle();
+    if (error) throw error;
+  });
+  scheduleDataCacheWrite();
 }
 async function deleteTransactionDB(id) {
-  const { data, error } = await sb.from('transactions').delete().eq('id', id).eq('user_id', currentUser.id).select('id').maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error('Suppression de la transaction non confirmée');
+  assertLiveWrite();
+  await retryDbWrite(async () => {
+    const { error } = await sb.from('transactions').delete().eq('id', id).eq('user_id', currentUser.id).select('id').maybeSingle();
+    if (error) throw error;
+  });
+  scheduleDataCacheWrite();
 }
 
 // ─── YAHOO FINANCE API (via Cloudflare Worker proxy) ─────────────────────────
 const YF_WORKER = 'https://yf-proxy.viqmusic-promo.workers.dev';
 const YF_BASE   = 'https://query1.finance.yahoo.com';
-const YF_PRIMARY_ATTEMPTS = 2;
+const YF_PRIMARY_ATTEMPTS = 3;
 const YF_CACHE_TTL = 60 * 1000;
 const QUOTE_CONCURRENCY = 3;
 const HISTORY_CONCURRENCY = 2;
@@ -595,7 +795,7 @@ async function yfFetch(path) {
           return await parseYahooResponse(response);
         } catch (error) {
           lastError = error;
-          if (attempt < provider.attempts) await waitForQuoteRetry(450 * attempt);
+          if (attempt < provider.attempts) await waitForQuoteRetry(450 * (2 ** (attempt - 1)) + Math.round(Math.random() * 180));
         }
       }
     }
@@ -1021,7 +1221,8 @@ function hideOfflineBanner() {
 window.addEventListener('online', () => {
   hideOfflineBanner();
   showToast('✅ Connexion rétablie', 'success');
-  if (currentUser && positions.length > 0) refreshAllPrices();
+  if (_usingCachedData) retryCachedDataSync(false);
+  else if (currentUser && positions.length > 0) refreshAllPrices();
 });
 window.addEventListener('offline', () => {
   showOfflineBanner('📡 Hors-ligne — reconnectez-vous pour synchroniser les données.');
@@ -1312,6 +1513,10 @@ async function confirmLivretSolde(id) {
 let _isRefreshing = false;
 let _lastPriceRefresh = 0; // timestamp du dernier refresh de prix
 async function refreshAllPrices() {
+  if (_usingCachedData) {
+    retryCachedDataSync(true);
+    return;
+  }
   if (positions.length === 0) return;
   if (_isRefreshing) return;
   const refreshUserId = currentUser?.id;
@@ -1369,25 +1574,11 @@ async function refreshAllPrices() {
     if (currentUser?.id !== refreshUserId) return;
 
     const updatedIdSet = new Set(updatedIds);
-    const missingIdSet = new Set(missingIds);
-    const updatesById = new Map(changedPositions
-      .filter(p => updatedIdSet.has(p.id))
-      .map(p => [p.id, p]));
+    const updatedQuotes = changedPositions.filter(p => updatedIdSet.has(p.id));
 
     // Fusionne uniquement les cotations dans l'état ACTUEL. Une quantité, un
     // PRU, un ajout ou une suppression effectué pendant le refresh est préservé.
-    positions = positions
-      .filter(p => !missingIdSet.has(p.id))
-      .map(p => {
-        const quote = updatesById.get(p.id);
-        return quote ? {
-          ...p,
-          current: quote.current,
-          change: quote.change,
-          changePercent: quote.changePercent,
-          lastUpdated: quote.lastUpdated,
-        } : p;
-      });
+    positions = MoobankCore.mergePositionPriceUpdates(positions, updatedQuotes, missingIds);
     missingIds.forEach(id => { delete positionHistory[id]; });
     const activePositionIds = new Set(positions.map(p => p.id));
     changedPositions.filter(p => updatedIdSet.has(p.id) && activePositionIds.has(p.id)).forEach(p => {
@@ -1468,6 +1659,7 @@ function fmtPrice(n) {
   return _fmtEur.format(n);
 }
 function tagClass(type) { return TAG_CLASS_MAP[type] || 'tag-autre'; }
+function accountTypeLabel(type) { return ACCOUNT_TYPE_LABELS[type] || type || 'Autre'; }
 function getAccountName(id) { const a=accounts.find(a=>a.id===id); return a?a.name:'—'; }
 function getAccountType(id) { const a=accounts.find(a=>a.id===id); return a?a.type:''; }
 
@@ -1484,7 +1676,7 @@ function renderAccounts() {
           <div class="account-type">${_esc(a.name)}</div>
           <button class="del-btn" onclick="deleteAccount('${a.id}')">✕</button>
         </div>
-        <span class="tag ${tagClass(a.type)}">${_esc(a.type)}</span>
+        <span class="tag ${tagClass(a.type)}">${_esc(accountTypeLabel(a.type))}</span>
         <div style="margin-top:10px">
           <div style="display:flex;align-items:center;gap:8px">
             <div class="account-total" id="livret-total-${a.id}">${fmtEur(solde)}</div>
@@ -1518,7 +1710,7 @@ function renderAccounts() {
         <div class="account-type">${_esc(a.name)}</div>
         <button class="del-btn" onclick="deleteAccount('${a.id}')">✕</button>
       </div>
-      <span class="tag ${tagClass(a.type)}">${_esc(a.type)}</span>
+      <span class="tag ${tagClass(a.type)}">${_esc(accountTypeLabel(a.type))}</span>
       <div style="margin-top:10px">
         <div class="account-total">${fmtEur(total)}</div>
         <div class="account-perf" style="color:${pnlColor}">${pnl>=0?'+':''}${fmtEur(pnl)} (${pnl>=0?'+':''}${fmt(pct)}%)</div>
@@ -1529,14 +1721,25 @@ function renderAccounts() {
 
 function renderPositions() {
   const tbody=document.getElementById('posTable');
+  const mobileList = document.getElementById('posMobileList');
   const q = (document.getElementById('posSearch')?.value || '').toLowerCase().trim();
   const filtered = q
     ? getSortedPositions().filter(p => p.symbol.toLowerCase().includes(q) || (p.name||'').toLowerCase().includes(q))
     : getSortedPositions();
-  if (positions.length===0) { tbody.innerHTML=`<tr><td colspan="11" class="empty-state">Aucune position — <button type="button" class="empty-action" onclick="openModal('position')">ajouter une position</button></td></tr>`; return; }
-  if (filtered.length === 0 && q) { tbody.innerHTML='<tr><td colspan="11" class="empty-state">Aucune position ne correspond à "' + q + '"</td></tr>'; return; }
-  _mobileRowData = {};
-  tbody.innerHTML = filtered.map((p, i) => {
+  if (positions.length===0) {
+    const empty = `Aucune position — <button type="button" class="empty-action" onclick="openModal('position')">ajouter une position</button>`;
+    tbody.innerHTML=`<tr><td colspan="11" class="empty-state">${empty}</td></tr>`;
+    if (mobileList) mobileList.innerHTML = `<div class="empty-state">${empty}</div>`;
+    return;
+  }
+  if (filtered.length === 0 && q) {
+    const empty = `Aucune position pour « ${_esc(q)} »`;
+    tbody.innerHTML=`<tr><td colspan="11" class="empty-state">${empty}</td></tr>`;
+    if (mobileList) mobileList.innerHTML = `<div class="empty-state">${empty}</div>`;
+    return;
+  }
+
+  const rendered = filtered.map((p, i) => {
     const value=p.current*p.qty;
     const pnl = p.price > 0 ? (p.current-p.price)*p.qty : null;
     const pct = p.price > 0 ? ((p.current-p.price)/p.price)*100 : null;
@@ -1553,16 +1756,14 @@ function renderPositions() {
     const priceDisplay = p.price > 0 ? fmtPrice(p.price) : `<span style="color:var(--muted)">—</span>`;
     const qtyDisplay = p.qty >= 1000 ? _fmtQty.format(p.qty) : fmt(p.qty, p.qty%1===0?0:p.qty<0.001?8:4);
     const ago = p.lastUpdated ? timeAgo(p.lastUpdated) : '';
-    // Détails compacts affichés au toucher sur mobile.
-    _mobileRowData[p.id] = {
-      account: _esc(getAccountName(p.accountId)), type: _esc(type || '—'),
-      typeClass: tagClass(type), qty: qtyDisplay, pru: priceDisplay,
-      current: fmtPrice(p.current), pnl: pnlDisplay, trend: sparklineSVG(hist, sparkColor)
-    };
-    return `<tr style="animation:rowIn 0.3s ease ${i * 0.04}s both" onclick="toggleMobileRow(this,'${p.id}',event)" data-pid="${p.id}">
+    const typeLabel = accountTypeLabel(type || 'Autre');
+    const mobilePnl = pct === null
+      ? '<span style="color:var(--muted)">PRU inconnu</span>'
+      : `<span style="color:${color}">${pnl>=0?'+':''}${fmtEur(pnl)} · ${pct>=0?'+':''}${fmt(pct)}%</span>`;
+    const row = `<tr style="animation:rowIn 0.3s ease ${i * 0.04}s both" data-pid="${p.id}">
       <td><div class="ticker-sym">${_esc(p.symbol)}</div><div class="ticker-name">${_esc(p.name||'')}</div></td>
       <td style="font-size:0.75rem">${_esc(getAccountName(p.accountId))}</td>
-      <td><span class="tag ${tagClass(type)}">${type||'—'}</span></td>
+      <td><span class="tag ${tagClass(type)}">${_esc(typeLabel)}</span></td>
       <td>${qtyDisplay}</td>
       <td>${priceDisplay}</td>
       <td class="price-cell" id="price-${p.id}">${fmtPrice(p.current)}<div style="font-size:0.6rem;color:var(--muted)">${ago}</div></td>
@@ -1572,40 +1773,52 @@ function renderPositions() {
       <td>${sparklineSVG(hist,sparkColor)}</td>
       <td style="display:flex;gap:6px;align-items:center"><button class="del-btn" style="background:rgba(0,229,160,0.08);color:var(--accent);border-color:rgba(0,229,160,0.2)" onclick="openEditPosition('${p.id}');event.stopPropagation()">✏️</button><button class="del-btn" onclick="deletePosition('${p.id}');event.stopPropagation()">✕</button></td>
     </tr>`;
-  }).join('');
+    const card = `<article class="position-mobile-card" id="mobile-position-${p.id}">
+      <button type="button" class="position-mobile-summary" aria-expanded="false" aria-controls="mobile-position-details-${p.id}" onclick="toggleMobilePositionCard('${p.id}')">
+        <span class="position-mobile-identity">
+          <span class="position-mobile-symbol">${_esc(p.symbol)}</span>
+          <span class="position-mobile-name">${_esc(p.name || p.symbol)}</span>
+          <span class="position-mobile-meta"><span>${_esc(getAccountName(p.accountId))}</span><span class="tag ${tagClass(type)}">${_esc(typeLabel)}</span></span>
+        </span>
+        <span class="position-mobile-values">
+          <span class="position-mobile-value">${fmtEur(value)}</span>
+          <span class="position-mobile-pnl">${mobilePnl}</span>
+        </span>
+        <svg class="position-mobile-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+      </button>
+      <div class="position-mobile-details" id="mobile-position-details-${p.id}" hidden>
+        <div><div class="position-mobile-detail-label">Quantité</div><div class="position-mobile-detail-value">${qtyDisplay}</div></div>
+        <div><div class="position-mobile-detail-label">PRU</div><div class="position-mobile-detail-value">${priceDisplay}</div></div>
+        <div><div class="position-mobile-detail-label">Cours</div><div class="position-mobile-detail-value">${fmtPrice(p.current)}</div></div>
+        <div class="position-mobile-actions">
+          <button type="button" class="btn" onclick="openEditPosition('${p.id}')">Modifier</button>
+          <button type="button" class="btn btn-sell" onclick="deletePosition('${p.id}')">Supprimer</button>
+        </div>
+      </div>
+    </article>`;
+    return { row, card };
+  });
+  tbody.innerHTML = rendered.map(item => item.row).join('');
+  if (mobileList) mobileList.innerHTML = rendered.map(item => item.card).join('');
 }
 
-function toggleMobileRow(tr, pid, e) {
-  // Ne pas ouvrir si on clique sur un bouton
-  if (e && e.target.closest('button')) return;
-  // Uniquement sur mobile
-  if (window.innerWidth > 768) return;
-  const existingDetail = tr.nextElementSibling;
-  if (existingDetail && existingDetail.classList.contains('mobile-detail-row')) {
-    existingDetail.remove();
-    tr.classList.remove('mobile-expanded');
-    return;
-  }
-  // Fermer les autres
-  document.querySelectorAll('.mobile-detail-row').forEach(r => r.remove());
-  document.querySelectorAll('tr.mobile-expanded').forEach(r => r.classList.remove('mobile-expanded'));
-  tr.classList.add('mobile-expanded');
-  // Récupérer depuis le store JS
-  const rowData = _mobileRowData[pid] || {};
-  const trend = rowData.trend || '';
-  const detail = document.createElement('tr');
-  detail.className = 'mobile-detail-row';
-  detail.innerHTML = `<td colspan="11" style="background:rgba(0,229,160,0.04);padding:10px 14px;border-bottom:1px solid var(--border)">
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px;font-size:0.75rem">
-      <div><div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">Compte</div>${rowData.account || '—'} · <span class="tag ${rowData.typeClass || 'tag-autre'}">${rowData.type || '—'}</span></div>
-      <div><div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">Quantité</div>${rowData.qty || '—'}</div>
-      <div><div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">PRU</div>${rowData.pru || '—'}</div>
-      <div><div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">Prix actuel</div>${rowData.current || '—'}</div>
-      <div><div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">P&amp;L</div>${rowData.pnl || '—'}</div>
-      ${trend ? `<div><div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">Tendance</div>${trend}</div>` : ''}
-    </div>
-  </td>`;
-  tr.after(detail);
+function toggleMobilePositionCard(id) {
+  const card = document.getElementById(`mobile-position-${id}`);
+  const details = document.getElementById(`mobile-position-details-${id}`);
+  const summary = card?.querySelector('.position-mobile-summary');
+  if (!card || !details || !summary) return;
+  const willOpen = details.hidden;
+  document.querySelectorAll('.position-mobile-card.expanded').forEach(otherCard => {
+    if (otherCard === card) return;
+    otherCard.classList.remove('expanded');
+    const otherDetails = otherCard.querySelector('.position-mobile-details');
+    const otherSummary = otherCard.querySelector('.position-mobile-summary');
+    if (otherDetails) otherDetails.hidden = true;
+    otherSummary?.setAttribute('aria-expanded', 'false');
+  });
+  card.classList.toggle('expanded', willOpen);
+  details.hidden = !willOpen;
+  summary.setAttribute('aria-expanded', String(willOpen));
 }
 
 function timeAgo(ts) {
@@ -1624,6 +1837,9 @@ const ALLOCATION_COLORS = Object.freeze({
   AV: '#f1c56b',
   Crypto: '#ff8b7f',
   Livret: '#63d6ed',
+  'Livret A': '#63d6ed',
+  LDDS: '#72cfea',
+  'Autre livret': '#82bed4',
   Immo: '#b79aff',
   Autre: '#91a2a9',
 });
@@ -1868,21 +2084,26 @@ let selectedGoalEmoji = '🏠';
 
 async function persistGoals(goal, isDelete = false) {
   if (!currentUser) return;
+  assertLiveWrite();
   try {
     if (isDelete) {
-      const { data, error } = await sb.from('goals').delete().eq('id', goal.id).eq('user_id', currentUser.id).select('id').maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error('Suppression de l’objectif non confirmée');
-    } else {
       await retryDbWrite(async () => {
-        const { error } = await sb.from('goals').upsert({
-          id: goal.id, user_id: currentUser.id,
-          name: goal.name, target: goal.target,
-          current: goal.current, emoji: goal.emoji
-        });
+        const { error } = await sb.from('goals').delete().eq('id', goal.id).eq('user_id', currentUser.id).select('id').maybeSingle();
+        if (error) throw error;
+      });
+    } else {
+      const row = {
+        id: goal.id, user_id: currentUser.id,
+        name: goal.name, target: goal.target,
+        current: goal.current, emoji: goal.emoji
+      };
+      MoobankCore.validateGoalRecord(row);
+      await retryDbWrite(async () => {
+        const { error } = await sb.from('goals').upsert(row);
         if (error) throw error;
       });
     }
+    scheduleDataCacheWrite();
   } catch(e) {
     console.error('[Moobank] persistGoals error:', e);
     throw e; // propager aux appelants (saveGoal, deleteGoal) pour rollback
@@ -2073,7 +2294,7 @@ function renderFilterToggles() {
   const allToggle = `<button type="button" class="filter-toggle ${allActive ? 'active' : ''}" aria-pressed="${allActive}" onclick="toggleAll()" style="font-weight:600"><span class="ft-dot"></span>Tout</button>`;
   const typeToggles = types.map(type => {
     const active = filteredTypes.includes(type);
-    return `<button type="button" class="filter-toggle ${active ? 'active' : ''}" aria-pressed="${active}" onclick="toggleType('${type}')"><span class="ft-dot"></span>${_esc(type)}</button>`;
+    return `<button type="button" class="filter-toggle ${active ? 'active' : ''}" aria-pressed="${active}" onclick="toggleType('${type}')"><span class="ft-dot"></span>${_esc(accountTypeLabel(type))}</button>`;
   }).join('');
   el.innerHTML = allToggle + typeToggles;
 }
@@ -2622,7 +2843,9 @@ function renderPrelevements() {
 
 // ─── VISIBILITY REFRESH ──────────────────────────────────────────────────────
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && positions.length > 0) {
+  if (document.visibilityState === 'visible' && _usingCachedData) {
+    retryCachedDataSync(false);
+  } else if (document.visibilityState === 'visible' && positions.length > 0) {
     // Si plus de 2 min depuis le dernier refresh, on relance
     const now = Date.now();
     if (now - _lastPriceRefresh > 2 * 60 * 1000) {
@@ -2723,6 +2946,12 @@ document.addEventListener('click', e => {
 function clearLoadedSession() {
   // État en mémoire uniquement ; aucune suppression en base ou de jeton SDK.
   closeMobileActions();
+  _cacheSyncTask?.controller?.abort();
+  _cacheSyncTask = null;
+  clearTimeout(_cacheRetryTimer); _cacheRetryTimer = null;
+  clearTimeout(_cacheWriteTimer); _cacheWriteTimer = null;
+  _cacheRetryIndex = 0;
+  setCachedDataMode(false);
   currentUser = null;
   _appReadyTask = null;
   accounts = []; positions = []; prelevements = []; transactions = []; patrimoineHistory = []; goals = [];
@@ -2764,7 +2993,6 @@ function initApp(user) {
   task.promise = (async () => {
     try {
       let loaded;
-      let networkRetries = 0;
       // Maximum quatre tentatives au total, même si les erreurs alternent.
       for (let attempt = 0; attempt <= JWT_RETRY_DELAYS.length; attempt++) {
         try {
@@ -2774,20 +3002,21 @@ function initApp(user) {
           if (task.controller.signal.aborted || error.name === 'AbortError') throw error;
           const futureJwt = error.kind === 'jwt_future';
           const temporary = error.kind === 'timeout' || error.kind === 'network';
-          if (attempt === JWT_RETRY_DELAYS.length || (!futureJwt && (!temporary || networkRetries++ >= 1))) throw error;
+          if (attempt === JWT_RETRY_DELAYS.length || (!futureJwt && !temporary)) throw error;
           setAuthLoadStatus(futureJwt ?
             `Vérification temporaire de la session — nouvelle tentative (${attempt + 2}/4)…` :
             'Connexion momentanément indisponible — nouvelle tentative…');
-          await waitForDataRetry(futureJwt ? JWT_RETRY_DELAYS[attempt] : TIMING_SUPABASE_RETRY, task.controller.signal);
+          await waitForDataRetry(JWT_RETRY_DELAYS[attempt] || TIMING_SUPABASE_RETRY, task.controller.signal);
         }
       }
       if (_appInitTask !== task || task.controller.signal.aborted) return false;
       // Commit unique, seulement une fois les six lectures réussies.
-      ({ accounts, positions, prelevements, transactions, patrimoineHistory, goals } = loaded);
-      positionHistory = {};
+      assignLoadedData(loaded);
       currentUser = _authUser?.id === user.id ? _authUser : user;
       _appReadyTask = task;
       _failedLoad = null;
+      _cacheRetryIndex = 0;
+      setCachedDataMode(false);
       hideOfflineBanner();
       document.getElementById('auth-error').textContent = '';
       document.getElementById('loadingOverlay').classList.add('hidden');
@@ -2796,6 +3025,7 @@ function initApp(user) {
       renderAll();
       renderPrelevements();
       renderGoals();
+      persistDataCache(currentUser.id, loaded);
       fetchEurUsd();
       loadMarketNews();
       _eurUsdInterval = setInterval(() => { if (_appReadyTask === task) fetchEurUsd(); }, 5 * 60 * 1000);
@@ -2810,6 +3040,25 @@ function initApp(user) {
       if (_appInitTask !== task || task.controller.signal.aborted || error.name === 'AbortError') return false;
       // Pas de jeton, mot de passe ou contenu des comptes dans les diagnostics.
       console.error('[Moobank] loadAllData error:', error.kind || 'unexpected', error.queryErrors?.length ? error.queryErrors : error.message);
+      const cached = error.kind !== 'auth_required' ? readDataCache(user.id) : null;
+      if (cached) {
+        assignLoadedData(cached.data);
+        currentUser = _authUser?.id === user.id ? _authUser : user;
+        _appReadyTask = task;
+        _failedLoad = { userId: user.id, email: user.email || '', kind: error.kind || 'unexpected' };
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('mainApp').classList.remove('hidden');
+        setCachedDataMode(true, cached.savedAt);
+        renderAll();
+        renderPrelevements();
+        renderGoals();
+        fetchEurUsd();
+        clearInterval(_eurUsdInterval);
+        _eurUsdInterval = setInterval(() => { if (_appReadyTask === task) fetchEurUsd(); }, 5 * 60 * 1000);
+        scheduleCachedDataRetry();
+        return true;
+      }
       clearLoadedSession();
       _failedLoad = { userId: user.id, email: user.email || '', kind: error.kind || 'unexpected' };
       if (!document.getElementById('auth-email').value) document.getElementById('auth-email').value = user.email || '';
@@ -3097,7 +3346,7 @@ function simRenderPortfolioControls(buckets) {
   if (metaEl) {
     const accountLabel = accounts.length === 1 ? 'compte' : 'comptes';
     const positionLabel = positions.length === 1 ? 'position' : 'positions';
-    metaEl.textContent = `${accounts.length} ${accountLabel} · ${positions.length} ${positionLabel} · dernières valorisations disponibles`;
+    metaEl.textContent = `${accounts.length} ${accountLabel} · ${positions.length} ${positionLabel} · valeurs actuelles`;
   }
   if (typesEl) {
     const valued = buckets.filter(bucket => bucket.value > 0.005);
@@ -3108,8 +3357,8 @@ function simRenderPortfolioControls(buckets) {
   if (emptyEl) {
     emptyEl.classList.toggle('hidden', total > 0);
     emptyEl.textContent = buckets.length
-      ? 'Aucun encours n’est encore valorisé. Vous pouvez néanmoins simuler de futurs versements.'
-      : 'Ajoutez au moins un compte ou une position pour obtenir une projection personnalisée.';
+      ? 'Aucun encours valorisé. Les futurs versements restent simulables.'
+      : 'Ajoutez un compte pour commencer.';
   }
 
   const signature = [currentUser?.id || '', ...buckets.map(bucket => bucket.type),
@@ -3713,18 +3962,29 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 
 function showAppUpdatePrompt(onUpdate) {
   if (document.getElementById('appUpdatePrompt')) return;
-  const prompt = document.createElement('div');
-  prompt.id = 'appUpdatePrompt';
-  prompt.className = 'app-update-prompt';
-  prompt.setAttribute('role', 'status');
-  prompt.innerHTML = `<span>Une nouvelle version de Moobank est prête.</span>
-    <button type="button" class="btn btn-sm btn-primary">Mettre à jour</button>`;
-  prompt.querySelector('button').addEventListener('click', () => {
-    prompt.querySelector('button').disabled = true;
-    prompt.querySelector('button').textContent = 'Mise à jour…';
+  const overlay = document.createElement('div');
+  overlay.id = 'appUpdatePrompt';
+  overlay.className = 'app-update-overlay';
+  overlay.innerHTML = `<section class="app-update-card" role="dialog" aria-modal="true" aria-labelledby="appUpdateTitle" aria-describedby="appUpdateDescription">
+    <img src="./assets/brand/moobank-mark.svg" width="38" height="38" alt="">
+    <div class="app-update-copy">
+      <strong id="appUpdateTitle">Mise à jour disponible</strong>
+      <span id="appUpdateDescription">La nouvelle version de Moobank est prête.</span>
+    </div>
+    <div class="app-update-actions">
+      <button type="button" class="btn app-update-later">Plus tard</button>
+      <button type="button" class="btn btn-primary app-update-now">Mettre à jour</button>
+    </div>
+  </section>`;
+  overlay.querySelector('.app-update-later').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('.app-update-now').addEventListener('click', event => {
+    event.currentTarget.disabled = true;
+    event.currentTarget.textContent = 'Mise à jour…';
     onUpdate();
   });
-  document.body.appendChild(prompt);
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+  overlay.querySelector('.app-update-now')?.focus();
 }
 
 // ─── App namespace (optional) ───────────────────────────────────────────────
@@ -3733,6 +3993,6 @@ window.App.authRecoveryVersion = '2026-08-28.1';
 for (const k of ['openMobileActions', 'closeMobileActions', 'runMobileAction']) {
   window.App[k] = window[k];
 }
-for (const k of ['addAccount', 'cancelAddPrel', 'cancelLivretEdit', 'closeEditPosition', 'closeGoalModal', 'closeModal', 'confirmAddPrel', 'confirmEditPosition', 'confirmEditPrel', 'confirmLivretSolde', 'confirmPosition', 'deleteAccount', 'deleteGoal', 'deletePosition', 'deletePrel', 'editGoal', 'editLivretSolde', 'editPrel', 'exportDataBackup', 'openAddGoal', 'openAddPrel', 'openEditPosition', 'openModal', 'refreshAllPrices', 'renderPrelevements', 'saveGoal', 'selectGoalEmoji', 'selectTickerByIndex', 'setAllocationMode', 'setChartPeriod', 'setPosSide', 'setTrajectoryYears', 'signOut', 'simNormalizeContribution', 'simNormalizeRate', 'simResetContributions', 'simResetRates', 'simSetContribution', 'simSetRate', 'sortPositions', 'switchPosTab', 'switchTab', 'toggleAll', 'toggleType']) {
+for (const k of ['addAccount', 'cancelAddPrel', 'cancelLivretEdit', 'closeEditPosition', 'closeGoalModal', 'closeModal', 'confirmAddPrel', 'confirmEditPosition', 'confirmEditPrel', 'confirmLivretSolde', 'confirmPosition', 'deleteAccount', 'deleteGoal', 'deletePosition', 'deletePrel', 'editGoal', 'editLivretSolde', 'editPrel', 'exportDataBackup', 'openAddGoal', 'openAddPrel', 'openEditPosition', 'openModal', 'refreshAllPrices', 'renderPrelevements', 'retryCachedDataSync', 'saveGoal', 'selectGoalEmoji', 'selectTickerByIndex', 'setAllocationMode', 'setChartPeriod', 'setPosSide', 'setTrajectoryYears', 'signOut', 'simNormalizeContribution', 'simNormalizeRate', 'simResetContributions', 'simResetRates', 'simSetContribution', 'simSetRate', 'sortPositions', 'switchPosTab', 'switchTab', 'toggleAll', 'toggleMobilePositionCard', 'toggleType']) {
   if (typeof window[k] === 'function') window.App[k] = window[k];
 }

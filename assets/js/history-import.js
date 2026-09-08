@@ -188,6 +188,15 @@ async function saveHistoryImport() {
   const toUpsert = Object.entries(byDate).map(([date, value]) => ({
     user_id: currentUser.id, date, value
   }));
+  try {
+    assertLiveWrite();
+    toUpsert.forEach(row => MoobankCore.validateHistoryRecord(row));
+  } catch (error) {
+    statusEl.style.color = 'var(--loss)';
+    statusEl.textContent = '✗ ' + (error.message || 'Données invalides');
+    btn.disabled = false;
+    return;
+  }
   const replacedDates = toUpsert.filter(row => patrimoineHistory.some(item => item.date === row.date));
   if (replacedDates.length > 0 && !confirm(
     `${replacedDates.length} date(s) existent déjà et seront remplacées. Continuer ?`
@@ -199,8 +208,10 @@ async function saveHistoryImport() {
   }
 
   try {
-    const { error } = await sb.from('patrimoine_history').upsert(toUpsert, { onConflict: 'user_id,date' });
-    if (error) throw error;
+    await retryDbWrite(async () => {
+      const { error } = await sb.from('patrimoine_history').upsert(toUpsert, { onConflict: 'user_id,date' });
+      if (error) throw error;
+    });
 
     // Update local state
     toUpsert.forEach(({ date, value }) => {
@@ -210,6 +221,7 @@ async function saveHistoryImport() {
     });
     patrimoineHistory.sort((a, b) => a.date.localeCompare(b.date));
     renderChart();
+    scheduleDataCacheWrite();
 
     statusEl.style.color = 'var(--gain)';
     statusEl.textContent = `✓ ${toUpsert.length} entrée(s) enregistrée(s) avec succès !`;

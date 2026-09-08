@@ -11,17 +11,21 @@
     AV:     Object.freeze({ rate: 3, spread: 1.5 }),
     Crypto: Object.freeze({ rate: 8, spread: 10 }),
     Livret: Object.freeze({ rate: 2, spread: 1 }),
+    'Livret A': Object.freeze({ rate: 2, spread: 1 }),
+    LDDS: Object.freeze({ rate: 2, spread: 1 }),
+    'Autre livret': Object.freeze({ rate: 2, spread: 1 }),
     Immo:   Object.freeze({ rate: 3, spread: 2 }),
     Autre:  Object.freeze({ rate: 0, spread: 1 }),
   });
 
   const TYPE_LABELS = Object.freeze({
     PEA: 'PEA', CTO: 'CTO', PEE: 'Épargne salariale', PER: 'PER',
-    AV: 'Assurance-vie', Crypto: 'Crypto', Livret: 'Livrets',
+    AV: 'Assurance-vie', Crypto: 'Crypto', Livret: 'Autres livrets',
+    'Livret A': 'Livret A', LDDS: 'LDDS', 'Autre livret': 'Autres livrets',
     Immo: 'Immobilier', Autre: 'Autre',
   });
 
-  const TYPE_ORDER = Object.freeze(['PEA', 'CTO', 'PEE', 'PER', 'AV', 'Crypto', 'Livret', 'Immo', 'Autre']);
+  const TYPE_ORDER = Object.freeze(['PEA', 'CTO', 'PEE', 'PER', 'AV', 'Crypto', 'Livret A', 'LDDS', 'Autre livret', 'Livret', 'Immo', 'Autre']);
 
   function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(maximum, value));
